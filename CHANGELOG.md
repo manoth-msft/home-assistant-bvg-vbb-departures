@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3.1] - 2026-01-04
+### Changed
+- Fixed broken URLs in documentation (@tom71)
+
 ## [0.1.3] - 2025-11-14
 ### Added
 - Option to hide the "(Berlin)" suffix in stop and direction names
