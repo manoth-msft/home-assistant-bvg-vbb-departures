@@ -32,7 +32,7 @@ If you prefer manual installation, please see the [manual installation guide](./
 Open Home Assistant and go to **HACS → Three dots in top right corner → Custom repositories**. Add both of the following repositories:
 
 - `https://github.com/manoth-msft/home-assistant-bvg-vbb-departures` → Type: **Integration**  
-- `https://github.comv/manoth-msft/home-assistant-dashboard-card-bvg-vbb-departures` → Type: **Dashboard**
+- `https://github.com/manoth-msft/home-assistant-dashboard-card-bvg-vbb-departures` → Type: **Dashboard**
 
 Click **Add**, then reload the HACS page (hit `F5`) to make sure both repositories are available.
 
