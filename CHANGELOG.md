@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.3.1] - 2026-01-04
+## [0.1.3.1] - 2026-01-14
 ### Changed
 - Fixed broken URLs in documentation (@tom71)
 
