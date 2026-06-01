@@ -160,7 +160,8 @@ class TransportSensor(SensorEntity):
     def update(self):
         self.departures = self.fetch_departures()
 
-    def fetch_directional_departure(self, direction: str | None) -> list[Departure]:
+    def _fetch_all_departures(self) -> list[Departure]:
+        """Fetch all departures from the API without any direction pre-filtering."""
         try:
             response = self.session.get(
                 url=f"{API_ENDPOINT}/stops/{self.stop_id}/departures",
@@ -168,7 +169,6 @@ class TransportSensor(SensorEntity):
                     "when": (
                         datetime.utcnow() + timedelta(minutes=self.walking_time)
                     ).isoformat(),
-                    "direction": direction,
                     "duration": self.duration,
                     "results": API_MAX_RESULTS,
                     "suburban": self.config.get(CONF_TYPE_SUBURBAN) or False,
@@ -191,47 +191,90 @@ class TransportSensor(SensorEntity):
 
         _LOGGER.debug(f"OK: departures for {self.stop_id}: {response.text}")
 
-        # parse JSON response
         try:
-            departures = response.json()
+            data = response.json()
         except InvalidJSONError as ex:
             _LOGGER.error(f"API invalid JSON: {ex}")
             return []
 
-        if self.excluded_stops is None:
-            excluded_stops = []
-        else:
-            excluded_stops = self.excluded_stops.split(",")
+        excluded_stops = self.excluded_stops.split(",") if self.excluded_stops else []
 
-        # convert api data into objects
         return [
             Departure.from_dict(departure)
-            for departure in departures.get("departures")
+            for departure in data.get("departures", [])
             if departure["stop"]["id"] not in excluded_stops
         ]
 
+    def _trip_passes_through(self, trip_id: str, direction_ids: set[str]) -> bool:
+        """Return True if any stopover on this trip matches one of the direction IDs.
+
+        Uses GET /trips/:id?stopovers=true. Responses are served from the
+        in-memory CachedSession so repeat calls within the same update cycle
+        (or across update cycles while the cache entry is fresh) are free.
+        """
+        try:
+            response = self.session.get(
+                url=f"{API_ENDPOINT}/trips/{trip_id}",
+                params={"stopovers": "true"},
+                timeout=30,
+            )
+            response.raise_for_status()
+        except (HTTPError, Timeout) as ex:
+            _LOGGER.warning(f"Trip lookup failed for {trip_id}: {ex}")
+            return False
+
+        try:
+            data = response.json()
+        except InvalidJSONError:
+            return False
+
+        for stopover in data.get("trip", {}).get("stopovers", []):
+            if stopover.get("stop", {}).get("id") in direction_ids:
+                return True
+        return False
+
     def fetch_departures(self) -> list[Departure]:
-        departures = []
+        # ----------------------------------------------------------------------
+        # How the "direction" filter works (in plain English):
+        #
+        # The user enters one or more stop IDs, e.g. "900100003,900110505".
+        # We keep a departure if its trip either ENDS at one of those stops,
+        # OR PASSES THROUGH one of them on the way.
+        #
+        # We can't ask the upstream API to do this for us:
+        #   - /departures only matches a trip's FINAL destination, never an
+        #     intermediate stop.
+        #   - /departures rejects comma-separated values with HTTP 400.
+        # So we do it ourselves, in two cheap steps:
+        #   1. First check each departure's destination_id (free, already in
+        #      the response payload).
+        #   2. Only when that doesn't match, fetch the full trip and look at
+        #      every stopover. Trip responses are cached in-memory for a day
+        #      via requests-cache, so repeat lookups cost nothing.
+        # ----------------------------------------------------------------------
 
-        # Step 1: Fetch departures
-        
-        if self.direction is None:
-            departures += self.fetch_directional_departure(self.direction)
-        else:
-            for direction in self.direction.split(','):
-                departures += self.fetch_directional_departure(direction)
-       
-        # Step 2: Deduplicate departures
-            # Duplicates should only exist for the Ringbahn and filtering for both directions
+        # Step 1: Fetch all departures in a single call (no direction pre-filter).
+        departures = self._fetch_all_departures()
 
+        # Step 2: Apply the direction filter described above.
+        if self.direction is not None:
+            direction_ids = {d.strip() for d in self.direction.split(",") if d.strip()}
+            if direction_ids:
+                departures = [
+                    d for d in departures
+                    if d.destination_id in direction_ids
+                    or self._trip_passes_through(d.trip_id, direction_ids)
+                ]
+
+        # Step 3: Deduplicate departures
+        #         Duplicates should only exist for the Ringbahn and filtering for both directions
         deduplicated_departures = set(departures)
 
-        # Step 3: Apply Ringbahn filter
-            # The API response includes the symbols ⟲ and ⟳ as part of the direction value,
-            # e.g. "direction": "Ringbahn S42 ⟲"
-            # We filter for just these chars, instead of hard-coding the full string
-            # (e.g. "Ringbahn S42 ⟲" / "Ringbahn S41 ⟳"). This may be more future-proof.
-        
+        # Step 4: Apply Ringbahn filter
+        #         The API response includes the symbols ⟲ and ⟳ as part of the direction value,
+        #         e.g. "direction": "Ringbahn S42 ⟲"
+        #         We filter for just these chars, instead of hard-coding the full string
+        #         (e.g. "Ringbahn S42 ⟲" / "Ringbahn S41 ⟳"). This may be more future-proof.
         filtered_departures = [
             d for d in deduplicated_departures
             if not (
@@ -240,15 +283,13 @@ class TransportSensor(SensorEntity):
             )
         ]
 
-        # Step 4: Clean direction suffix if enabled
+        # Step 5: Clean direction suffix if enabled
         if self.remove_berlin_suffix:
             for d in filtered_departures:
                 if d.direction:
                     d.direction = d.direction.replace(STOP_SUFFIX_BERLIN, "").strip()
 
-        # Step 5: Return result
-            # Return filtered result, ordered by timestamp
-        
+        # Step 6: Return filtered result, ordered by timestamp
         return sorted(filtered_departures, key=lambda d: d.timestamp)
 
     def next_departure(self):

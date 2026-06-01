@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Fixed
+- Direction filter now matches trips that pass through the given stop, not only trips that end there. Comma-separated lists of stop IDs are also supported. Fixes #12.
+
 ## [0.1.3.1] - 2026-01-14
 ### Changed
 - Fixed broken URLs in documentation (@tom71)

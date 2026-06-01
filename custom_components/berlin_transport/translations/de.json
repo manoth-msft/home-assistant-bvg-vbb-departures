@@ -21,7 +21,7 @@
         "description": "Zusätzliche Einstellungen",
         "data": {
           "walking_time": "Gehminuten zur Haltestelle",
-          "direction": "Nur Abfahrten zu diesen (End-)Haltestellen",
+          "direction": "Nur Abfahrten, die diese Haltestellen anfahren oder dort enden (kommagetrennte Liste möglich)",
           "excluded_stops": "Diese nahegelegenen Haltestellen ignorieren",
           "exclude_ringbahn_clockwise": "Ringbahn ⟳ (im Uhrzeigersinn) ausblenden",
           "exclude_ringbahn_counterclockwise": "Ringbahn ⟲ (im Gegen-Uhrzeigersinn) ausblenden",

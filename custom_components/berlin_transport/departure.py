@@ -14,6 +14,7 @@ class Departure:
     line_type: str
     timestamp: datetime
     time: datetime
+    destination_id: str | None = None
     direction: str | None = None
     icon: str | None = None
     bg_color: str | None = None
@@ -35,6 +36,7 @@ class Departure:
             line_type=line_type,
             timestamp=timestamp,
             time=timestamp.strftime("%H:%M"),
+            destination_id=source.get("destination", {}).get("id"),
             direction=source.get("direction"),
             icon=line_visuals.get("icon") or DEFAULT_ICON,
             bg_color=source.get("line", {}).get("color", {}).get("bg"),

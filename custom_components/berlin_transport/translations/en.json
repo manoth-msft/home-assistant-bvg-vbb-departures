@@ -21,7 +21,7 @@
         "description": "Additional settings",
         "data": {
           "walking_time": "Walking time to stop (minutes)",
-          "direction": "Only show departures which pass or end at these destinations",
+          "direction": "Only show departures that pass through or end at these stop IDs (comma-separated list supported)",
           "excluded_stops": "Ignore these nearby stop IDs",
           "exclude_ringbahn_clockwise": "Hide Ringbahn ⟳ (clockwise)",
           "exclude_ringbahn_counterclockwise": "Hide Ringbahn ⟲ (counter clockwise)",
