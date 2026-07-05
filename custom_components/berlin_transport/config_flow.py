@@ -62,7 +62,7 @@ NAME_SCHEMA = vol.Schema(
 async def get_stop_id(session: aiohttp.ClientSession, name: str) -> Optional[list[dict[str, Any]]]:
     stops: Any = []
     try:
-        async with async_timeout.timeout(30):
+        async with async_timeout.timeout(120):
             response = await session.get(
                 url=f"{API_ENDPOINT}/locations",
                 params={

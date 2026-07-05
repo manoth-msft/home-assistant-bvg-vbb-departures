@@ -13,9 +13,11 @@ All notable changes to this project will be documented in this file.
 - Reduced debug log verbosity by avoiding full raw API payload logging (@manoth-msft)
 - Sensor is now marked unavailable when fallback data expires or no cached departures remain during API outages (@manoth-msft)
 - Cached departures are now pruned continuously even while retry backoff is active (@manoth-msft)
+- Fixed departures request crashes on newer aiohttp/yarl versions by converting boolean transport filters to API-safe query values (@manoth-msft)
 
 ### Changed
 - Reduced default polling frequency from 90s to 120s to lower API pressure (@manoth-msft)
+- Increased API request timeout from 30s to 120s for both sensor updates and stop search in the configuration flow (@manoth-msft)
 - Added stale-if-error behavior: keep and serve last successful departures for up to 15 minutes when API calls fail (@manoth-msft)
 - Added adaptive retry backoff after repeated API failures to avoid hammering an unstable endpoint (@manoth-msft)
 - Migrated network I/O to async (`aiohttp`) and sensor refresh to `async_update` to avoid blocking Home Assistant (@mrueg)

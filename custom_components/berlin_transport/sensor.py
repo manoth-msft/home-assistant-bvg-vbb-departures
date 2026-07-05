@@ -298,7 +298,7 @@ class TransportSensor(SensorEntity):
             if direction is not None:
                 params["direction"] = direction
 
-            async with async_timeout.timeout(30):
+            async with async_timeout.timeout(120):
                 response = await self.session.get(
                     url=f"{API_ENDPOINT}/stops/{self.stop_id}/departures",
                     params=params,
