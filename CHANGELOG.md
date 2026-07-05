@@ -4,22 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [0.1.4.0] - Upcoming
 ### Fixed
-- Improved network error handling in stop search and departures fetch by also catching generic request failures
-- Improved log granularity for API failures (timeouts, connection errors, HTTP errors, and explicit 429 rate limits with `Retry-After`)
-- Prevented crashes when API responses contain missing or malformed departures payloads
-- Prevented config flow crashes on unexpected stop selection mismatches
-- Normalized comma-separated excluded stop IDs (whitespace is now ignored)
-- Fixed type annotation mismatch for departure time (`time` is stored as string)
-- Reduced debug log verbosity by avoiding full raw API payload logging
-- Sensor is now marked unavailable when fallback data expires or no cached departures remain during API outages
-- Cached departures are now pruned continuously even while retry backoff is active
+- Improved network error handling in stop search and departures fetch by also catching generic request failures (@manoth-msft)
+- Improved log granularity for API failures (timeouts, connection errors, HTTP errors, and explicit 429 rate limits with `Retry-After`) (@manoth-msft)
+- Prevented crashes when API responses contain missing or malformed departures payloads (@manoth-msft)
+- Prevented config flow crashes on unexpected stop selection mismatches (@manoth-msft)
+- Normalized comma-separated excluded stop IDs (whitespace is now ignored) (@manoth-msft)
+- Fixed type annotation mismatch for departure time (`time` is stored as string) (@manoth-msft)
+- Reduced debug log verbosity by avoiding full raw API payload logging (@manoth-msft)
+- Sensor is now marked unavailable when fallback data expires or no cached departures remain during API outages (@manoth-msft)
+- Cached departures are now pruned continuously even while retry backoff is active (@manoth-msft)
 
 ### Changed
-- Reduced default polling frequency from 90s to 120s to lower API pressure
-- Added stale-if-error behavior: keep and serve last successful departures for up to 15 minutes when API calls fail
-- Added adaptive retry backoff after repeated API failures to avoid hammering an unstable endpoint
+- Reduced default polling frequency from 90s to 120s to lower API pressure (@manoth-msft)
+- Added stale-if-error behavior: keep and serve last successful departures for up to 15 minutes when API calls fail (@manoth-msft)
+- Added adaptive retry backoff after repeated API failures to avoid hammering an unstable endpoint (@manoth-msft)
 - Migrated network I/O to async (`aiohttp`) and sensor refresh to `async_update` to avoid blocking Home Assistant (@mrueg)
-- Updated config flow stop search to non-blocking async HTTP requests
+- Updated config flow stop search to non-blocking async HTTP requests (@manoth-msft)
 - Exposed warning remarks from departures (`attributes.departures[].warnings`) (@mrueg)
 
 ## [0.1.3.1] - 2026-01-14

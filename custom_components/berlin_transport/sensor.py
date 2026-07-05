@@ -285,13 +285,13 @@ class TransportSensor(SensorEntity):
                     datetime.utcnow() + timedelta(minutes=self.walking_time)
                 ).isoformat(),
                 "results": API_MAX_RESULTS,
-                "suburban": self.config.get(CONF_TYPE_SUBURBAN) or False,
-                "subway": self.config.get(CONF_TYPE_SUBWAY) or False,
-                "tram": self.config.get(CONF_TYPE_TRAM) or False,
-                "bus": self.config.get(CONF_TYPE_BUS) or False,
-                "ferry": self.config.get(CONF_TYPE_FERRY) or False,
-                "express": self.config.get(CONF_TYPE_EXPRESS) or False,
-                "regional": self.config.get(CONF_TYPE_REGIONAL) or False,
+                "suburban": str(bool(self.config.get(CONF_TYPE_SUBURBAN))).lower(),
+                "subway": str(bool(self.config.get(CONF_TYPE_SUBWAY))).lower(),
+                "tram": str(bool(self.config.get(CONF_TYPE_TRAM))).lower(),
+                "bus": str(bool(self.config.get(CONF_TYPE_BUS))).lower(),
+                "ferry": str(bool(self.config.get(CONF_TYPE_FERRY))).lower(),
+                "express": str(bool(self.config.get(CONF_TYPE_EXPRESS))).lower(),
+                "regional": str(bool(self.config.get(CONF_TYPE_REGIONAL))).lower(),
             }
             if self.duration is not None:
                 params["duration"] = self.duration
