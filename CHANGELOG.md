@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - Increased API request timeout from 30s to 240s for both sensor updates and stop search in the configuration flow (@manoth-msft)
 - Temporarily hardcoded departures fetch duration to 30 minutes and removed the user-facing duration setting (@manoth-msft)
 - Added stale-if-error behavior: keep and serve last successful departures indefinitely during API failures, while marking the sensor stale via attributes (@manoth-msft)
+- Added ETag-based conditional requests (`If-None-Match`) and 304 cache reuse per stop to reduce payload and parsing overhead, with debug logging for request/cache behavior (@manoth-msft)
 - Added adaptive retry backoff after repeated API failures to avoid hammering an unstable endpoint (@manoth-msft)
 - Migrated network I/O to async (`aiohttp`) and sensor refresh to `async_update` to avoid blocking Home Assistant (@mrueg)
 - Updated config flow stop search to non-blocking async HTTP requests (@manoth-msft)

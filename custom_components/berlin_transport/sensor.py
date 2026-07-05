@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import copy
 from typing import Any, Mapping
 from datetime import datetime, timedelta
 
@@ -103,6 +104,8 @@ async def async_setup_entry(
 
 class TransportSensor(SensorEntity):
     departures: list[Departure] = []
+    _etag_by_request: dict[str, str] = {}
+    _cached_departures_by_request: dict[str, list[Departure]] = {}
 
     def __init__(
         self,
@@ -186,6 +189,26 @@ class TransportSensor(SensorEntity):
             return f"{self._consecutive_failures} aufeinanderfolgende Fehler"
 
         return "Daten sind aktuell"
+
+    def _request_variant_key(self, direction: str | None) -> str:
+        direction_key = direction or "*"
+        excluded_stops_key = self.excluded_stops or ""
+        return "|".join(
+            [
+                str(self.stop_id),
+                direction_key,
+                str(self.duration),
+                str(self.walking_time),
+                str(bool(self.config.get(CONF_TYPE_SUBURBAN))),
+                str(bool(self.config.get(CONF_TYPE_SUBWAY))),
+                str(bool(self.config.get(CONF_TYPE_TRAM))),
+                str(bool(self.config.get(CONF_TYPE_BUS))),
+                str(bool(self.config.get(CONF_TYPE_FERRY))),
+                str(bool(self.config.get(CONF_TYPE_EXPRESS))),
+                str(bool(self.config.get(CONF_TYPE_REGIONAL))),
+                excluded_stops_key,
+            ]
+        )
 
     def _prune_cached_departures(self) -> None:
         self.departures = [
@@ -333,6 +356,18 @@ class TransportSensor(SensorEntity):
 
     async def fetch_directional_departure(self, direction: str | None) -> list[Departure] | None:
         departures: dict[str, Any] = {}
+        request_headers: dict[str, str] = {}
+        request_key = self._request_variant_key(direction)
+        known_etag = self._etag_by_request.get(request_key)
+        if known_etag:
+            request_headers["If-None-Match"] = known_etag
+            _LOGGER.debug(
+                "Sending conditional request for stop %s (key=%s) with If-None-Match=%s",
+                self.stop_id,
+                request_key,
+                known_etag,
+            )
+
         try:
             params: dict[str, Any] = {
                 "when": (
@@ -355,7 +390,29 @@ class TransportSensor(SensorEntity):
                 response = await self.session.get(
                     url=f"{API_ENDPOINT}/stops/{self.stop_id}/departures",
                     params=params,
+                    headers=request_headers,
                 )
+
+                if response.status == 304:
+                    cached_departures = self._cached_departures_by_request.get(request_key)
+                    if cached_departures is not None:
+                        _LOGGER.debug(
+                            "ETag cache hit for stop %s (key=%s, 304 Not Modified), "
+                            "reusing %s cached departures",
+                            self.stop_id,
+                            request_key,
+                            len(cached_departures),
+                        )
+                        return copy.deepcopy(cached_departures)
+
+                    _LOGGER.warning(
+                        "Received 304 Not Modified for stop %s (key=%s) "
+                        "without cached departures",
+                        self.stop_id,
+                        request_key,
+                    )
+                    return None
+
                 response.raise_for_status()
                 departures = await response.json()
         except (
@@ -396,6 +453,20 @@ class TransportSensor(SensorEntity):
                 parsed_departures.append(Departure.from_dict(departure))
             except (KeyError, TypeError, ValueError) as ex:
                 _LOGGER.debug("Skipping malformed departure for stop %s: %s", self.stop_id, ex)
+
+        response_etag = response.headers.get("ETag")
+        if response_etag:
+            self._etag_by_request[request_key] = response_etag
+            self._cached_departures_by_request[request_key] = copy.deepcopy(
+                parsed_departures
+            )
+            _LOGGER.debug(
+                "Stored ETag for stop %s (key=%s): %s (cached %s departures)",
+                self.stop_id,
+                request_key,
+                response_etag,
+                len(parsed_departures),
+            )
 
         return parsed_departures
 
