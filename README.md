@@ -2,19 +2,17 @@
 
 > ℹ️ [Hier klicken](./docs/liesmich.md) für eine deutsche Beschreibung.
 
-This integration brings **live public transport data** from Berlin and Brandenburg directly into your Home Assistant dashboard. It uses the official VBB API to fetch real-time departures from BVG and VBB stops — including line numbers, destinations, departure times, and delays.
+This integration brings **live public transport data** from Berlin and Brandenburg directly into your Home Assistant dashboard. It fetches real-time departures from BVG and VBB stops — including line numbers, destinations, departure times, and delays.
 
 Whether you're commuting, picking up your kids, or just wondering when the next Ringbahn arrives, this integration shows upcoming departures from your selected stops in a clean, readable format.
-
-> 🛠️ This project is a fork of the original Berlin Transport integration by [vas3k](https://github.com/vas3k/home-assistant-berlin-transport) — with enhanced filtering, customization options, and independent maintenance.
 
 ![Example of a real-time public transport display at S+U Gesundbrunnen Bhf  station in Berlin, similar to how departures appear in the Home Assistant dashboard.](./docs/screenshots/timetable_card2s.jpg)![Another example](./docs/screenshots/timetable_card3s.jpg)![Another example](./docs/screenshots/timetable_card1s.jpg)
 
 ## ✨ Features
-- **Real-time departures** from BVG & VBB stops, including line numbers, destinations, delays, and platforms, updated every 90 seconds  
+- **Real-time departures** from BVG & VBB stops, including line numbers, destinations, delays, and platforms, updated every 120 seconds  
 - **Dashboard card integration** for a clean, user-friendly display of upcoming departures
 - **Advanced filtering options**: direction, excluded stops, transport types (bus, tram, ferry, etc.)  
-- **Customization**: walking time offset, duration window, official VBB line colors, Ringbahn ⟳/⟲ toggle  
+- **Customization**: walking time offset, official VBB line colors, Ringbahn ⟳/⟲ toggle  
 - **Localization support** with German and English translations
 
 ## 💿 Installation
@@ -108,6 +106,10 @@ Then your additional configuration would look like this:
 - **Subtract walking time from relative time of departures**: Subtract your walking time to the stop from the relative countdown.  
   For example, if the bus leaves in 15 minutes and you configured 10 minutes walking time, enabling this option will show that you need to leave the house in 5 minutes to catch the bus.
 
+## 🤝 Credits
+
+This project is a fork of the original Berlin Transport integration by [vas3k](https://github.com/vas3k/home-assistant-berlin-transport), with additional filtering, customization options, and ongoing independent maintenance.
+
 ## ❓ FAQ
 ### Q: How do I find my stop_id?
 
@@ -157,13 +159,13 @@ A: The sensor uses the VBB Public API to fetch all transport information.
 
 ---
 
-### Q: How often does the component update?
-A: The component updates every 90 seconds. It makes a separate request for each stop. This is usually sufficient, but adding dozens of stops is not recommended to avoid hitting the rate limit.
+### Q: How often does the integration update?
+A: The integration updates every 120 seconds. It makes a separate request for each stop. This is usually sufficient, but adding dozens of stops is not recommended to avoid hitting the rate limit.
 
 ---
 
 ### Q: What happens if the VBB API returns errors?
-A: The API may occasionally return 503 or timeout errors due to temporary instability. These do not affect the integration’s functionality beyond generating warning messages in the Home Assistant logs. Currently, there is no reliable workaround for this behavior.
+A: If the API fails (for example with 502/503 or timeout errors), the integration keeps showing the last successful departures instead of going blank. The sensor marks these values as stale (`data_is_stale: true`) and reports the current state via `health_status` (for example `backoff` or `stale`). It then retries automatically with adaptive backoff.
 
 ---
 
@@ -176,9 +178,6 @@ A: For each stop, the integration creates one entity. It stores the upcoming dep
 A: Go to **Settings > Devices & Services**, select the **BVG/VBB Departures** integration, and click on the three dots next to the entity you want to update. Delete the entry.  
 Then choose **Add service** and re‑add the stop with the adjusted configuration.  
 The new entity will receive the same ID as the previous one, so your dashboards do not need to be updated.
-
-### Q: Can I use the integration outside of Berlin and Brandenburg?
-A: The integration is based on the standardized HAFAS format, which is used in many other cities as well. This means you should be able to adapt the component to other locations if desired.
 
 ## 🤝 Contributions, Bugs & Feature Requests
 

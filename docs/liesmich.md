@@ -1,18 +1,16 @@
 # 🚉 Berlin (BVG) & Brandenburg (VBB) ÖPNV Abfahrten für Home Assistant
 
-Diese Integration bringt **Live-Daten des öffentlichen Nahverkehrs** aus Berlin und Brandenburg direkt in dein Home Assistant Dashboard. Sie nutzt die offizielle VBB API, um Echtzeit-Abfahrten von BVG- und VBB-Haltestellen abzurufen – inklusive Liniennummern, Zielorten, Abfahrtszeiten und Verspätungen.
+Diese Integration bringt **Live-Daten des öffentlichen Nahverkehrs** aus Berlin und Brandenburg direkt in dein Home Assistant Dashboard. Sie ruft Echtzeit-Abfahrten von BVG- und VBB-Haltestellen ab – inklusive Liniennummern, Zielorten, Abfahrtszeiten und Verspätungen.
 
 Ob auf dem Weg zur Arbeit, beim Abholen der Kinder oder einfach, um zu wissen, wann die nächste Ringbahn kommt – diese Integration zeigt die kommenden Abfahrten deiner gewählten Haltestellen in einem klaren, gut lesbaren Format.
-
-> 🛠️ Dieses Projekt ist ein Fork der ursprünglichen Berlin Transport Integration von [vas3k](https://github.com/vas3k/home-assistant-berlin-transport) — mit erweiterten Filtermöglichkeiten, zusätzlichen Anpassungen und unabhängiger Pflege.
 
 ![Beispiel einer Echtzeit-Anzeige am S+U Gesundbrunnen Bahnhof in Berlin, ähnlich wie die Darstellung im Home Assistant Dashboard.](./screenshots/timetable_card2s.jpg)![Weiteres Beispiel](./screenshots/timetable_card3s.jpg)![Weiteres Beispiel](./screenshots/timetable_card1s.jpg)
 
 ## ✨ Funktionen
-- **Echtzeit-Abfahrten** von BVG- & VBB-Haltestellen, inklusive Liniennummern, Zielorten und Verspätungen, aktualisiert alle 90 Sekunden  
+- **Echtzeit-Abfahrten** von BVG- & VBB-Haltestellen, inklusive Liniennummern, Zielorten und Verspätungen, aktualisiert alle 120 Sekunden  
 - **Dashboard-Kartenintegration** für eine klare, benutzerfreundliche Anzeige der kommenden Abfahrten  
 - **Erweiterte Filteroptionen**: Richtung, ausgeschlossene Haltestellen, Verkehrsmitteltypen (Bus, Tram, Fähre usw.)  
-- **Anpassungen**: Wegezeiten-Berücksichtigung, Zeitfenster, offizielle VBB-Linienfarben, Ringbahn ⟳/⟲-Filter
+- **Anpassungen**: Wegezeiten-Berücksichtigung, offizielle VBB-Linienfarben, Ringbahn ⟳/⟲-Filter
 - **Sprachunterstützung** mit deutschen und englischen Übersetzungen  
 
 ## 💿 Installation
@@ -67,7 +65,7 @@ Fertig 🎉
 
 - **Richtung**: Verwende `stop_id`, um Abfahrten nach Richtung zu filtern. Gib die `stop_id` einer Haltestelle entlang der gewünschten Linie oder des Endziels an. Mehrere Werte können als kommaseparierte Liste angegeben werden. Siehe [unten](#how-do-i-find-my-stop_id), wie du die `stop_id` findest.  
 - **Haltestellen ausschließen**: Liste von `stop_id`‑Werten, um nahegelegene Haltestellen auszuschließen. Mehrere Werte können als kommaseparierte Liste angegeben werden.  
-- **Zeitraum**: Legt fest, wie viele Minuten in die Zukunft Abfahrten abgerufen werden (Standard: 10).  
+- **Zeitraum**: Derzeit fest auf 30 Minuten eingestellt und nicht konfigurierbar.  
 - **Gehminuten**: Gib die benötigte Zeit ein, um zur Haltestelle zu laufen. Dadurch werden nicht erreichbare Abfahrten ausgeblendet.  
 - **Offizielle VBB‑Linienfarben verwenden**: Optional können die offiziellen VBB‑Linienfarben aktiviert werden. Standardmäßig werden vordefinierte Farben genutzt.  
 - **Ringbahn ⟳/⟲ ausblenden**: Optional können Ringbahn‑Verbindungen im Uhrzeigersinn oder gegen den Uhrzeigersinn ausgeblendet werden.  
@@ -77,7 +75,7 @@ Fertig 🎉
 #### 📝 Beispielkonfiguration
 
 Angenommen, du möchtest die S‑Bahn‑Abfahrten von **S Treptower Park** überwachen.  
-Du willst nur Züge sehen, die nach **S+U Neukölln** fahren, Abfahrten von der nahegelegenen Bushaltestelle ausschließen und die nächsten 30 Minuten erfassen.  
+Du willst nur Züge sehen, die nach **S+U Neukölln** fahren und Abfahrten von der nahegelegenen Bushaltestelle ausschließen.  
 Da du etwa 10 Minuten bis zur Station benötigst, sollen nicht erreichbare Abfahrten ausgeblendet werden.  
 Außerdem möchtest du die Ringbahn ⟲ (die technisch ebenfalls nach S+U Neukölln fährt) nicht sehen und bevorzugst die Anzeige ohne das Suffix **(Berlin)**.  
 
@@ -85,7 +83,6 @@ Deine zusätzliche Konfiguration würde dann so aussehen:
 
 - **Richtung**: `900078201` (S+U Neukölln)  
 - **Ausgeschlossene Haltestellen**: `900190702` (Bushaltestelle am S Treptower Park)  
-- **Zeitraum**: `30` Minuten  
 - **Gehminuten**: `10` Minuten  
 - **Ringbahn ⟲ ausblenden**: aktiviert  
 - **Suffix (Berlin) entfernen**: aktiviert  
@@ -105,6 +102,10 @@ Deine zusätzliche Konfiguration würde dann so aussehen:
 
 - **Gehzeit von relativer Abfahrtszeit abziehen**: Zieht deine Gehzeit zur Haltestelle vom Countdown ab.  
   Beispiel: Wenn der Bus in 15 Minuten fährt und du 10 Minuten Gehzeit konfiguriert hast, zeigt die Karte an, dass du in 5 Minuten losgehen musst, um den Bus zu erreichen.
+
+## 🤝 Credits
+
+Dieses Projekt ist ein Fork der ursprünglichen Berlin Transport Integration von [vas3k](https://github.com/vas3k/home-assistant-berlin-transport), mit erweiterten Filtermöglichkeiten, zusätzlichen Anpassungen und unabhängiger Pflege.
 
 ## ❓ FAQ
 ### Q: Wie finde ich meine stop_id?
@@ -155,13 +156,13 @@ A: Der Sensor verwendet die öffentliche VBB API, um alle Verkehrsdaten abzurufe
 
 ---
 
-### Q: Wie oft aktualisiert sich die Komponente?
-A: Die Komponente aktualisiert sich alle 90 Sekunden. Für jede Haltestelle wird eine separate Anfrage gestellt. Das ist in der Regel ausreichend, aber es wird nicht empfohlen, Dutzende von Haltestellen hinzuzufügen, um das Rate Limit nicht zu überschreiten.
+### Q: Wie oft aktualisiert sich die Integration?
+A: Die Integration aktualisiert sich alle 120 Sekunden. Für jede Haltestelle wird eine separate Anfrage gestellt. Das ist in der Regel ausreichend, aber es wird nicht empfohlen, Dutzende von Haltestellen hinzuzufügen, um das Rate Limit nicht zu überschreiten.
 
 ---
 
 ### Q: Was passiert, wenn die VBB API Fehler zurückgibt?
-A: Die API kann gelegentlich 503‑ oder Timeout‑Fehler zurückgeben, bedingt durch temporäre Instabilität. Diese beeinträchtigen die Funktionalität der Integration nicht, außer dass Warnmeldungen im Home Assistant Log erscheinen. Derzeit gibt es dafür keine zuverlässige Lösung.
+A: Wenn die API fehlschlägt (z. B. mit 502/503 oder Timeouts), zeigt die Integration weiterhin die zuletzt erfolgreich geladenen Abfahrten an, statt leer zu bleiben. Der Sensor markiert diese Daten als veraltet (`data_is_stale: true`) und zeigt den aktuellen Zustand über `health_status` (z. B. `backoff` oder `stale`) an. Anschließend werden automatische Wiederholungsversuche mit adaptivem Backoff gestartet.
 
 ---
 
@@ -174,11 +175,6 @@ A: Für jede Haltestelle erstellt die Integration eine Entität. Die kommenden A
 A: Gehe zu **Einstellungen > Geräte & Dienste**, wähle die Integration **BVG/VBB Abfahrten** und klicke auf die drei Punkte neben der Entität, die du aktualisieren möchtest. Lösche den Eintrag.  
 Wähle anschließend **Dienst hinzufügen** und füge die Haltestelle mit der angepassten Konfiguration erneut hinzu.  
 Die neue Entität erhält dieselbe ID wie die vorherige, sodass deine Dashboards nicht angepasst werden müssen.
-
----
-
-### Q: Kann ich die Integration auch außerhalb von Berlin und Brandenburg nutzen?
-A: Ja. Die Integration basiert auf dem standardisierten HAFAS‑Format, das auch in vielen anderen Städten verwendet wird. Dadurch lässt sich die Komponente prinzipiell auch für andere Orte anpassen.
 
 ---
 

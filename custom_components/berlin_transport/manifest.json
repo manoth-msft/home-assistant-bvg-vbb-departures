@@ -8,5 +8,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/manoth-msft/home-assistant-bvg-vbb-departures/issues",
   "requirements": ["async-timeout"],
-  "version": "0.1.4.0"
+  "version": "0.1.4"
   }
