@@ -198,20 +198,29 @@ class TransportSensor(SensorEntity):
                 if not self._is_within_fallback(now_utc) or not self.departures:
                     self._attr_available = False
                     self.departures = []
-            _LOGGER.debug("Skipping API request for stop %s due to backoff until %s", self.stop_id, self._next_retry_at)
+            _LOGGER.debug(
+                "Skipping API request for stop %s due to backoff until %s",
+                self.stop_id,
+                self._next_retry_at,
+            )
             return
 
         departures = await self.fetch_departures()
         if departures is None:
             self._consecutive_failures += 1
-            backoff_seconds = min(900, SCAN_INTERVAL.total_seconds() * (2 ** (self._consecutive_failures - 1)))
+            backoff_seconds = min(
+                900,
+                SCAN_INTERVAL.total_seconds()
+                * (2 ** (self._consecutive_failures - 1)),
+            )
             self._next_retry_at = now_utc + timedelta(seconds=backoff_seconds)
 
             self._prune_cached_departures()
             if self._is_within_fallback(now_utc) and self.departures:
                 self._attr_available = True
                 _LOGGER.warning(
-                    "Using cached departures for stop %s after API failure (%s consecutive failures)",
+                    "Using cached departures for stop %s after API failure "
+                    "(%s consecutive failures)",
                     self.stop_id,
                     self._consecutive_failures,
                 )
@@ -231,10 +240,50 @@ class TransportSensor(SensorEntity):
         self._attr_available = True
         self.departures = departures
 
+    def _log_departure_fetch_error(self, ex: Exception) -> None:
+        if isinstance(ex, aiohttp.ClientResponseError):
+            if ex.status == 429:
+                retry_after = ex.headers.get("Retry-After") if ex.headers else None
+                _LOGGER.warning(
+                    "API rate limited for stop %s (status=%s, retry_after=%s)",
+                    self.stop_id,
+                    ex.status,
+                    retry_after,
+                )
+                return
+            _LOGGER.warning(
+                "API HTTP error for stop %s (status=%s, message=%s)",
+                self.stop_id,
+                ex.status,
+                ex.message,
+            )
+            return
+
+        if isinstance(ex, aiohttp.ClientConnectorError):
+            _LOGGER.warning("API connection error for stop %s: %s", self.stop_id, ex)
+            return
+
+        if isinstance(ex, aiohttp.ServerDisconnectedError):
+            _LOGGER.warning("API server disconnected for stop %s: %s", self.stop_id, ex)
+            return
+
+        if isinstance(ex, aiohttp.ClientError):
+            _LOGGER.warning("API client error for stop %s: %s", self.stop_id, ex)
+            return
+
+        if isinstance(ex, TimeoutError):
+            _LOGGER.warning("API timeout for stop %s: %s", self.stop_id, ex)
+            return
+
+        _LOGGER.exception("Unexpected API error for stop %s: %s", self.stop_id, ex)
+
     async def fetch_directional_departure(self, direction: str | None) -> list[Departure] | None:
+        departures: dict[str, Any] = {}
         try:
             params: dict[str, Any] = {
-                "when": (datetime.utcnow() + timedelta(minutes=self.walking_time)).isoformat(),
+                "when": (
+                    datetime.utcnow() + timedelta(minutes=self.walking_time)
+                ).isoformat(),
                 "results": API_MAX_RESULTS,
                 "suburban": self.config.get(CONF_TYPE_SUBURBAN) or False,
                 "subway": self.config.get(CONF_TYPE_SUBWAY) or False,
@@ -256,50 +305,36 @@ class TransportSensor(SensorEntity):
                 )
                 response.raise_for_status()
                 departures = await response.json()
-        except aiohttp.ClientResponseError as ex:
-            if ex.status == 429:
-                retry_after = ex.headers.get("Retry-After") if ex.headers else None
-                _LOGGER.warning(
-                    "API rate limited for stop %s (status=%s, retry_after=%s)",
-                    self.stop_id,
-                    ex.status,
-                    retry_after,
-                )
-            else:
-                _LOGGER.warning(
-                    "API HTTP error for stop %s (status=%s, message=%s)",
-                    self.stop_id,
-                    ex.status,
-                    ex.message,
-                )
-            return None
-        except aiohttp.ClientConnectorError as ex:
-            _LOGGER.warning("API connection error for stop %s: %s", self.stop_id, ex)
-            return None
-        except aiohttp.ServerDisconnectedError as ex:
-            _LOGGER.warning("API server disconnected for stop %s: %s", self.stop_id, ex)
-            return None
-        except aiohttp.ClientError as ex:
-            _LOGGER.warning("API client error for stop %s: %s", self.stop_id, ex)
-            return None
-        except TimeoutError as ex:
-            _LOGGER.warning("API timeout for stop %s: %s", self.stop_id, ex)
-            return None
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            _LOGGER.exception("Unexpected API error for stop %s: %s", self.stop_id, ex)
+        except (
+            aiohttp.ClientError,
+            TimeoutError,
+            Exception,
+        ) as ex:  # pylint: disable=broad-exception-caught
+            self._log_departure_fetch_error(ex)
             return None
 
-        _LOGGER.debug("OK: departures response for stop %s (status=%s)", self.stop_id, response.status)
+        _LOGGER.debug(
+            "OK: departures response for stop %s (status=%s)",
+            self.stop_id,
+            response.status,
+        )
 
         departures_data = departures.get("departures") or []
         if not isinstance(departures_data, list):
-            _LOGGER.warning("API response for stop %s has unexpected departures format", self.stop_id)
+            _LOGGER.warning(
+                "API response for stop %s has unexpected departures format",
+                self.stop_id,
+            )
             return None
 
         if self.excluded_stops is None:
             excluded_stops = []
         else:
-            excluded_stops = [stop.strip() for stop in self.excluded_stops.split(",") if stop.strip()]
+            excluded_stops = [
+                stop.strip()
+                for stop in self.excluded_stops.split(",")
+                if stop.strip()
+            ]
 
         parsed_departures: list[Departure] = []
         for departure in departures_data:
@@ -316,35 +351,38 @@ class TransportSensor(SensorEntity):
         departures = []
 
         # Step 1: Fetch departures
-        
+
         if self.direction is None:
             res = await self.fetch_directional_departure(self.direction)
             if res is None:
                 return None
             departures += res
         else:
-            for direction in self.direction.split(','):
+            for direction in self.direction.split(","):
                 res = await self.fetch_directional_departure(direction.strip())
                 if res is None:
                     return None
                 departures += res
-       
+
         # Step 2: Deduplicate departures
-            # Duplicates should only exist for the Ringbahn and filtering for both directions
+        # Duplicates should only exist for the Ringbahn and filtering for both directions.
 
         deduplicated_departures = set(departures)
 
         # Step 3: Apply Ringbahn filter
-            # The API response includes the symbols ⟲ and ⟳ as part of the direction value,
-            # e.g. "direction": "Ringbahn S42 ⟲"
-            # We filter for just these chars, instead of hard-coding the full string
-            # (e.g. "Ringbahn S42 ⟲" / "Ringbahn S41 ⟳"). This may be more future-proof.
-        
+        # The API response includes the symbols ⟲ and ⟳ as part of direction value.
+        # We filter using these symbols to avoid hard-coding route names.
+
         filtered_departures = [
-            d for d in deduplicated_departures
+            d
+            for d in deduplicated_departures
             if not (
-                (self.exclude_ringbahn_clockwise and d.direction and "⟳" in d.direction) or
-                (self.exclude_ringbahn_counterclockwise and d.direction and "⟲" in d.direction)
+                (self.exclude_ringbahn_clockwise and d.direction and "⟳" in d.direction)
+                or (
+                    self.exclude_ringbahn_counterclockwise
+                    and d.direction
+                    and "⟲" in d.direction
+                )
             )
         ]
 
@@ -355,8 +393,8 @@ class TransportSensor(SensorEntity):
                     d.direction = d.direction.replace(STOP_SUFFIX_BERLIN, "").strip()
 
         # Step 5: Return result
-            # Return filtered result, ordered by timestamp
-        
+        # Return filtered result, ordered by timestamp.
+
         return sorted(filtered_departures, key=lambda d: d.timestamp)
 
     def next_departure(self):

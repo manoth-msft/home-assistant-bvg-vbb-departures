@@ -60,6 +60,7 @@ NAME_SCHEMA = vol.Schema(
 )
 
 async def get_stop_id(session: aiohttp.ClientSession, name: str) -> Optional[list[dict[str, Any]]]:
+    stops: Any = []
     try:
         async with async_timeout.timeout(30):
             response = await session.get(
@@ -87,22 +88,16 @@ async def get_stop_id(session: aiohttp.ClientSession, name: str) -> Optional[lis
                 ex.status,
                 ex.message,
             )
-        return []
     except aiohttp.ClientConnectorError as ex:
         _LOGGER.warning("Stop search connection error (query=%s): %s", name, ex)
-        return []
     except aiohttp.ServerDisconnectedError as ex:
         _LOGGER.warning("Stop search server disconnected (query=%s): %s", name, ex)
-        return []
     except aiohttp.ClientError as ex:
         _LOGGER.warning("Stop search client error (query=%s): %s", name, ex)
-        return []
     except TimeoutError as ex:
         _LOGGER.warning("Stop search timeout (query=%s): %s", name, ex)
-        return []
     except Exception as ex:  # pylint: disable=broad-exception-caught
         _LOGGER.exception("Unexpected error while searching stop IDs (query=%s): %s", name, ex)
-        return []
 
     if not isinstance(stops, list):
         _LOGGER.warning("API returned unexpected stop search payload type for query '%s'", name)
