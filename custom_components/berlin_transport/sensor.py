@@ -308,8 +308,7 @@ class TransportSensor(SensorEntity):
         except (
             aiohttp.ClientError,
             TimeoutError,
-            Exception,
-        ) as ex:  # pylint: disable=broad-exception-caught
+        ) as ex:
             self._log_departure_fetch_error(ex)
             return None
 
