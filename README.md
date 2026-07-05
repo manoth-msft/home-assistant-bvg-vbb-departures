@@ -69,7 +69,7 @@ Done 🎉
 
 - **Direction**: Use `stop_id` to filter departures by direction. Provide the `stop_id` of a stop along the intended line or its final destination. Multiple values can be specified using a comma‑separated list. See [below](#how-do-i-find-my-stop_id) for how to find the `stop_id`.  
 - **Exclude stops**: List of `stop_id` values to exclude nearby stops. Multiple values can be specified using a comma‑separated list.  
-- **Duration**: Temporarily fixed to 20 minutes and currently not configurable.  
+- **Duration**: Temporarily fixed to 30 minutes and currently not configurable.  
 - **Walking time**: Enter the time needed to walk to the stop. This prevents unreachable departures from being shown.  
 - **Enable official VBB line colors**: Optionally enable official VBB line colors. By default, predefined colors are used.  
 - **Hide Ringbahn ⟳/⟲**: Optionally hide clockwise or counter‑clockwise Ringbahn services.  

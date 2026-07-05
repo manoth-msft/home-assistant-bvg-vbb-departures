@@ -139,6 +139,54 @@ class TransportSensor(SensorEntity):
             and (now_utc - self.last_update_success) <= FALLBACK_TIME
         )
 
+    def _is_data_stale(self, now_utc: datetime) -> bool:
+        return bool(
+            self.departures
+            and self.last_update_success
+            and (now_utc - self.last_update_success) > FALLBACK_TIME
+        )
+
+    def _last_updated_ago(self, now_utc: datetime) -> str | None:
+        if self.last_update_success is None:
+            return None
+
+        age_seconds = int((now_utc - self.last_update_success).total_seconds())
+        if age_seconds < 60:
+            return "gerade eben"
+
+        minutes = max(1, age_seconds // 60)
+        return f"vor {minutes} Minuten"
+
+    def _health_status(self, now_utc: datetime) -> str:
+        if self._next_retry_at is not None and now_utc < self._next_retry_at:
+            return "backoff"
+
+        if not self.departures and self.last_update_success is None:
+            return "no_data"
+
+        if self._is_data_stale(now_utc):
+            return "stale"
+
+        if self._consecutive_failures > 0:
+            return "degraded"
+
+        return "ok"
+
+    def _health_details(self, now_utc: datetime) -> str:
+        if self._next_retry_at is not None and now_utc < self._next_retry_at:
+            return f"Retry erst ab {self._next_retry_at.isoformat()}"
+
+        if not self.departures and self.last_update_success is None:
+            return "Noch keine erfolgreichen API-Daten"
+
+        if self._is_data_stale(now_utc):
+            return "Cache ist älter als der Fallback-Zeitraum"
+
+        if self._consecutive_failures > 0:
+            return f"{self._consecutive_failures} aufeinanderfolgende Fehler"
+
+        return "Daten sind aktuell"
+
     def _prune_cached_departures(self) -> None:
         self.departures = [
             departure
@@ -184,7 +232,12 @@ class TransportSensor(SensorEntity):
                 for departure in self.departures or []
             ],
             "last_update_success": self.last_update_success,
+            "last_updated": self.last_update_success,
+            "last_updated_ago": self._last_updated_ago(now_utc),
+            "health_status": self._health_status(now_utc),
+            "health_details": self._health_details(now_utc),
             "cache_age_seconds": cache_age_seconds,
+            "data_is_stale": self._is_data_stale(now_utc),
             "consecutive_failures": self._consecutive_failures,
             "backoff_until": self._next_retry_at,
         }
@@ -192,11 +245,7 @@ class TransportSensor(SensorEntity):
     async def async_update(self):
         now_utc = datetime.utcnow()
         if self._next_retry_at is not None and now_utc < self._next_retry_at:
-            self._prune_cached_departures()
-            if self._consecutive_failures > 0:
-                if not self._is_within_fallback(now_utc) or not self.departures:
-                    self._attr_available = False
-                    self.departures = []
+            self._attr_available = bool(self.departures)
             _LOGGER.debug(
                 "Skipping API request for stop %s due to backoff until %s",
                 self.stop_id,
@@ -214,23 +263,29 @@ class TransportSensor(SensorEntity):
             )
             self._next_retry_at = now_utc + timedelta(seconds=backoff_seconds)
 
-            self._prune_cached_departures()
-            if self._is_within_fallback(now_utc) and self.departures:
-                self._attr_available = True
+            self._attr_available = bool(self.departures)
+            if self.departures:
+                if self._is_within_fallback(now_utc):
+                    _LOGGER.warning(
+                        "Using cached departures for stop %s after API failure "
+                        "(%s consecutive failures)",
+                        self.stop_id,
+                        self._consecutive_failures,
+                    )
+                else:
+                    _LOGGER.warning(
+                        "Using stale cached departures for stop %s after API failure "
+                        "(%s consecutive failures)",
+                        self.stop_id,
+                        self._consecutive_failures,
+                    )
+            else:
                 _LOGGER.warning(
-                    "Using cached departures for stop %s after API failure "
+                    "No cached departures available for stop %s after API failure "
                     "(%s consecutive failures)",
                     self.stop_id,
                     self._consecutive_failures,
                 )
-            else:
-                self._attr_available = False
-                _LOGGER.warning(
-                    "Dropping stale cache for stop %s after API failure (%s consecutive failures)",
-                    self.stop_id,
-                    self._consecutive_failures,
-                )
-                self.departures = []
             return
 
         self._consecutive_failures = 0

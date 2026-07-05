@@ -11,15 +11,14 @@ All notable changes to this project will be documented in this file.
 - Normalized comma-separated excluded stop IDs (whitespace is now ignored) (@manoth-msft)
 - Fixed type annotation mismatch for departure time (`time` is stored as string) (@manoth-msft)
 - Reduced debug log verbosity by avoiding full raw API payload logging (@manoth-msft)
-- Sensor is now marked unavailable when fallback data expires or no cached departures remain during API outages (@manoth-msft)
-- Cached departures are now pruned continuously even while retry backoff is active (@manoth-msft)
+- Kept the last successful departures cache visible during API outages instead of dropping it, with `data_is_stale`, `last_updated`, `last_updated_ago`, and `health_status` attributes for UI visibility (@manoth-msft)
 - Fixed departures request crashes on newer aiohttp/yarl versions by converting boolean transport filters to API-safe query values (@manoth-msft)
 
 ### Changed
 - Reduced default polling frequency from 90s to 120s to lower API pressure (@manoth-msft)
 - Increased API request timeout from 30s to 240s for both sensor updates and stop search in the configuration flow (@manoth-msft)
-- Temporarily hardcoded departures fetch duration to 20 minutes and removed the user-facing duration setting (@manoth-msft)
-- Added stale-if-error behavior: keep and serve last successful departures for up to 15 minutes when API calls fail (@manoth-msft)
+- Temporarily hardcoded departures fetch duration to 30 minutes and removed the user-facing duration setting (@manoth-msft)
+- Added stale-if-error behavior: keep and serve last successful departures indefinitely during API failures, while marking the sensor stale via attributes (@manoth-msft)
 - Added adaptive retry backoff after repeated API failures to avoid hammering an unstable endpoint (@manoth-msft)
 - Migrated network I/O to async (`aiohttp`) and sensor refresh to `async_update` to avoid blocking Home Assistant (@mrueg)
 - Updated config flow stop search to non-blocking async HTTP requests (@manoth-msft)
