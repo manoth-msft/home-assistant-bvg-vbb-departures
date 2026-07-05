@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 
 from typing import Any, Optional
-import requests
+import aiohttp
+import async_timeout
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers import selector
 
@@ -57,36 +59,56 @@ NAME_SCHEMA = vol.Schema(
     }
 )
 
-# IPv6 is broken, see: https://github.com/public-transport/transport.rest/issues/20
-requests.packages.urllib3.util.connection.HAS_IPV6 = False
-
-
-def get_stop_id(name) -> Optional[list[dict[str, Any]]]:
+async def get_stop_id(session: aiohttp.ClientSession, name: str) -> Optional[list[dict[str, Any]]]:
     try:
-        response = requests.get(
-            url=f"{API_ENDPOINT}/locations",
-            params={
-                "query": name,
-                "results": API_MAX_RESULTS,
-            },
-            timeout=30,
-        )
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as ex:
-        _LOGGER.warning(f"API error: {ex}")
+        async with async_timeout.timeout(30):
+            response = await session.get(
+                url=f"{API_ENDPOINT}/locations",
+                params={
+                    "query": name,
+                    "results": API_MAX_RESULTS,
+                },
+            )
+            response.raise_for_status()
+            stops = await response.json()
+    except aiohttp.ClientResponseError as ex:
+        if ex.status == 429:
+            retry_after = ex.headers.get("Retry-After") if ex.headers else None
+            _LOGGER.warning(
+                "Stop search rate limited (query=%s, status=%s, retry_after=%s)",
+                name,
+                ex.status,
+                retry_after,
+            )
+        else:
+            _LOGGER.warning(
+                "Stop search HTTP error (query=%s, status=%s, message=%s)",
+                name,
+                ex.status,
+                ex.message,
+            )
         return []
-    except requests.exceptions.Timeout as ex:
-        _LOGGER.warning(f"API timeout: {ex}")
+    except aiohttp.ClientConnectorError as ex:
+        _LOGGER.warning("Stop search connection error (query=%s): %s", name, ex)
+        return []
+    except aiohttp.ServerDisconnectedError as ex:
+        _LOGGER.warning("Stop search server disconnected (query=%s): %s", name, ex)
+        return []
+    except aiohttp.ClientError as ex:
+        _LOGGER.warning("Stop search client error (query=%s): %s", name, ex)
+        return []
+    except TimeoutError as ex:
+        _LOGGER.warning("Stop search timeout (query=%s): %s", name, ex)
+        return []
+    except Exception as ex:  # pylint: disable=broad-exception-caught
+        _LOGGER.exception("Unexpected error while searching stop IDs (query=%s): %s", name, ex)
         return []
 
-    _LOGGER.debug(f"OK: stops for {name}: {response.text}")
-
-    # parse JSON response
-    try:
-        stops = response.json()
-    except requests.exceptions.InvalidJSONError as ex:
-        _LOGGER.error(f"API invalid JSON: {ex}")
+    if not isinstance(stops, list):
+        _LOGGER.warning("API returned unexpected stop search payload type for query '%s'", name)
         return []
+
+    _LOGGER.debug("OK: found %s stops for query '%s'", len(stops), name)
 
     # convert api data into objects
     return [
@@ -134,9 +156,8 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 data_schema=NAME_SCHEMA,
                 errors={},
             )
-        self.data[CONF_FOUND_STOPS] = await self.hass.async_add_executor_job(
-            get_stop_id, user_input[CONF_SEARCH]
-        )
+        session = async_get_clientsession(self.hass)
+        self.data[CONF_FOUND_STOPS] = await get_stop_id(session, user_input[CONF_SEARCH])
 
         _LOGGER.debug(
             f"OK: found stops for {user_input[CONF_SEARCH]}: {self.data[CONF_FOUND_STOPS]}"
@@ -155,12 +176,18 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={},
             )
 
-        selected_stop = next(
+        selected_stop = next((
             (stop[CONF_DEPARTURES_NAME], stop[CONF_DEPARTURES_STOP_ID])
             for stop in self.data[CONF_FOUND_STOPS]
             if user_input[CONF_SELECTED_STOP]
             == f"{stop[CONF_DEPARTURES_NAME]} [{stop[CONF_DEPARTURES_STOP_ID]}]"
-        )
+        ), None)
+        if selected_stop is None:
+            return self.async_show_form(
+                step_id="stop",
+                data_schema=list_stops(self.data[CONF_FOUND_STOPS]),
+                errors={},
+            )
         (
             self.data[CONF_DEPARTURES_NAME],
             self.data[CONF_DEPARTURES_STOP_ID],

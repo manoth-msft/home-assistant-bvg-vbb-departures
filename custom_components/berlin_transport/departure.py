@@ -13,7 +13,7 @@ class Departure:
     line_name: str
     line_type: str
     timestamp: datetime
-    time: datetime
+    time: str
     direction: str | None = None
     icon: str | None = None
     bg_color: str | None = None
@@ -21,6 +21,7 @@ class Departure:
     location: tuple[float, float] | None = None
     cancelled: bool = False
     delay: int | None = None
+    warnings: list[dict[str, str]] | None = None
 
     @classmethod
     def from_dict(cls, source):
@@ -45,6 +46,15 @@ class Departure:
             ],
             cancelled=source.get("cancelled", False),
             delay=source.get("delay", None),
+            warnings=[
+                {"id": remark.get("id"), "summary": remark.get("summary")}
+                for remark in source.get("remarks", [])
+                if (
+                    remark.get("type") == "warning"
+                    and remark.get("summary")
+                    and remark.get("id")
+                )
+            ] or None,
         )
 
     def to_dict(self, show_api_line_colors: bool, walking_time: int):
@@ -60,6 +70,7 @@ class Departure:
             "color": color,
             "cancelled": self.cancelled,
             "delay": self.delay,
+            "warnings": self.warnings,
             "walking_time": walking_time,
         }
 
@@ -68,8 +79,14 @@ class Departure:
     def __hash__(self):
         # The value of colors and walking time doesn't matter, it just needs to
         # be the same for all evaluations of this function
-        items = self.to_dict(show_api_line_colors=False, walking_time=0).items()
+        data = self.to_dict(show_api_line_colors=False, walking_time=0)
+        # Warnings are dicts (not hashable), replace with a sorted tuple of IDs.
+        data["warnings"] = (
+            tuple(sorted(warning["id"] for warning in data["warnings"]))
+            if data["warnings"]
+            else None
+        )
         # Dictionaries are not hashable, so use the items, sort them for
         # reproducibility. Convert it to a tuple, since lists are also not
         # hashable
-        return hash(tuple(sorted(items)))
+        return hash(tuple(sorted(data.items())))
