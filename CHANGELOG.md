@@ -17,7 +17,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Reduced default polling frequency from 90s to 120s to lower API pressure (@manoth-msft)
-- Increased API request timeout from 30s to 120s for both sensor updates and stop search in the configuration flow (@manoth-msft)
+- Increased API request timeout from 30s to 240s for both sensor updates and stop search in the configuration flow (@manoth-msft)
+- Temporarily hardcoded departures fetch duration to 20 minutes and removed the user-facing duration setting (@manoth-msft)
 - Added stale-if-error behavior: keep and serve last successful departures for up to 15 minutes when API calls fail (@manoth-msft)
 - Added adaptive retry backoff after repeated API failures to avoid hammering an unstable endpoint (@manoth-msft)
 - Migrated network I/O to async (`aiohttp`) and sensor refresh to `async_update` to avoid blocking Home Assistant (@mrueg)

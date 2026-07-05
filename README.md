@@ -69,7 +69,7 @@ Done 🎉
 
 - **Direction**: Use `stop_id` to filter departures by direction. Provide the `stop_id` of a stop along the intended line or its final destination. Multiple values can be specified using a comma‑separated list. See [below](#how-do-i-find-my-stop_id) for how to find the `stop_id`.  
 - **Exclude stops**: List of `stop_id` values to exclude nearby stops. Multiple values can be specified using a comma‑separated list.  
-- **Duration**: Defines how many minutes into the future departures are fetched (default: 10).  
+- **Duration**: Temporarily fixed to 20 minutes and currently not configurable.  
 - **Walking time**: Enter the time needed to walk to the stop. This prevents unreachable departures from being shown.  
 - **Enable official VBB line colors**: Optionally enable official VBB line colors. By default, predefined colors are used.  
 - **Hide Ringbahn ⟳/⟲**: Optionally hide clockwise or counter‑clockwise Ringbahn services.  
@@ -80,7 +80,7 @@ Done 🎉
 #### 📝 Example configuration
 
 Suppose you want to monitor S‑Bahn departures from **S Treptower Park**.  
-You only want to see trains heading to **S+U Neukölln**, exclude departures from the nearby bus stop, and capture the next 30 minutes.  
+You only want to see trains heading to **S+U Neukölln** and exclude departures from the nearby bus stop.  
 Since you need about 10 minutes to reach the station, unreachable departures should be hidden.  
 You also prefer not to see the Ringbahn ⟲ (which technically also goes to S+U Neukölln) and like the clean look without the **(Berlin)** suffix appended to station names.
 
@@ -88,7 +88,6 @@ Then your additional configuration would look like this:
 
 - **Direction**: `900078201` (S+U Neukölln)  
 - **Excluded stops**: `900190702` (bus stop at S Treptower Park)  
-- **Duration**: `30` minutes  
 - **Walking time**: `10` minutes  
 - **Hide Ringbahn ⟲**: enabled  
 - **Remove (Berlin) suffix**: enabled  

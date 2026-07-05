@@ -23,7 +23,6 @@ from .const import (
     CONF_SELECTED_STOP,
     CONF_DEPARTURES_DIRECTION,
     CONF_DEPARTURES_EXCLUDED_STOPS,
-    CONF_DEPARTURES_DURATION,
     CONF_DEPARTURES_WALKING_TIME,
     CONF_SHOW_API_LINE_COLORS,
     CONF_EXCLUDE_RINGBAHN_CLOCKWISE,
@@ -43,7 +42,6 @@ DATA_SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_DEPARTURES_DIRECTION): cv.string,
         vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): cv.string,
-        vol.Optional(CONF_DEPARTURES_DURATION): cv.positive_int,
         vol.Optional(CONF_DEPARTURES_WALKING_TIME, default=1): cv.positive_int,
         vol.Optional(CONF_SHOW_API_LINE_COLORS, default=False): cv.boolean,
         vol.Optional(CONF_EXCLUDE_RINGBAHN_CLOCKWISE, default=False): cv.boolean,
@@ -62,7 +60,7 @@ NAME_SCHEMA = vol.Schema(
 async def get_stop_id(session: aiohttp.ClientSession, name: str) -> Optional[list[dict[str, Any]]]:
     stops: Any = []
     try:
-        async with async_timeout.timeout(120):
+        async with async_timeout.timeout(240):
             response = await session.get(
                 url=f"{API_ENDPOINT}/locations",
                 params={

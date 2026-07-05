@@ -26,10 +26,10 @@ from .const import (  # pylint: disable=unused-import
     FALLBACK_TIME,
     API_ENDPOINT,
     API_MAX_RESULTS,
+    DEFAULT_DEPARTURES_DURATION,
     CONF_DEPARTURES,
     CONF_DEPARTURES_DIRECTION,
     CONF_DEPARTURES_EXCLUDED_STOPS,
-    CONF_DEPARTURES_DURATION,
     CONF_DEPARTURES_STOP_ID,
     CONF_DEPARTURES_WALKING_TIME,
     CONF_EXCLUDE_RINGBAHN_CLOCKWISE,
@@ -69,7 +69,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                 vol.Required(CONF_DEPARTURES_STOP_ID): cv.positive_int,
                 vol.Optional(CONF_DEPARTURES_DIRECTION): cv.string,
                 vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): cv.string,
-                vol.Optional(CONF_DEPARTURES_DURATION): cv.positive_int,
                 vol.Optional(CONF_DEPARTURES_WALKING_TIME, default=1): cv.positive_int,
                 vol.Optional(CONF_SHOW_API_LINE_COLORS, default=False): cv.boolean,
                 vol.Optional(CONF_EXCLUDE_RINGBAHN_CLOCKWISE, default=False): cv.boolean,
@@ -118,7 +117,7 @@ class TransportSensor(SensorEntity):
         self.excluded_stops: str | None = config.get(CONF_DEPARTURES_EXCLUDED_STOPS)
         self.sensor_name: str | None = config.get(CONF_DEPARTURES_NAME)
         self.direction: str | None = config.get(CONF_DEPARTURES_DIRECTION)
-        self.duration: int | None = config.get(CONF_DEPARTURES_DURATION)
+        self.duration: int = DEFAULT_DEPARTURES_DURATION
         self.walking_time: int = config.get(CONF_DEPARTURES_WALKING_TIME) or 1
         # we add +1 minute anyway to delete the "just gone" transport
         self.exclude_ringbahn_clockwise: bool = config.get(CONF_EXCLUDE_RINGBAHN_CLOCKWISE) or False
@@ -293,12 +292,11 @@ class TransportSensor(SensorEntity):
                 "express": str(bool(self.config.get(CONF_TYPE_EXPRESS))).lower(),
                 "regional": str(bool(self.config.get(CONF_TYPE_REGIONAL))).lower(),
             }
-            if self.duration is not None:
-                params["duration"] = self.duration
+            params["duration"] = self.duration
             if direction is not None:
                 params["direction"] = direction
 
-            async with async_timeout.timeout(120):
+            async with async_timeout.timeout(240):
                 response = await self.session.get(
                     url=f"{API_ENDPOINT}/stops/{self.stop_id}/departures",
                     params=params,

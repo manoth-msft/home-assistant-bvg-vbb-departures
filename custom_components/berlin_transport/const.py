@@ -5,6 +5,7 @@ SCAN_INTERVAL = timedelta(seconds=120)
 FALLBACK_TIME = timedelta(minutes=15)
 API_ENDPOINT = "https://v6.vbb.transport.rest"
 API_MAX_RESULTS = 15
+DEFAULT_DEPARTURES_DURATION = 20
 
 DEFAULT_ICON = "mdi:clock"
 
