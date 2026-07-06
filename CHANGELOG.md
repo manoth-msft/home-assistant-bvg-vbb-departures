@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 ### ⚠️ Breaking Change
 If you updated to 0.1.4.0 and adjusted your dashboards to use the `_2` suffixed sensors (e.g., `sensor.s_wannsee_bhf_berlin_2`), you will need to update them back to the original sensor names (e.g., `sensor.s_wannsee_bhf_berlin`) after updating to 0.1.4.1. The fix restores backward compatibility with 0.1.3.x, which means sensor entity IDs return to their original names.
 
+### Known Limitations (API Availability)
+Due to the transport.rest API's unstable availability and rate limiting, the following limitations apply:
+- Creating new sensors may fail if the config UI cannot load stops from the API. If this happens, wait a few minutes and try again.
+- Lovelace cards will not display until at least one successful sensor update has completed. This is expected behavior as the integration requires initial data before rendering UI elements.
+
 ### Fixed
 - **CRITICAL:** Fixed sensor recreation issue when updating from 0.1.3.x to 0.1.4.x. Sensor entity IDs are now preserved during updates (no more `_2` suffix)
 - Fixed timezone crash in expired departures pruning (naive vs timezone-aware datetime comparison)
