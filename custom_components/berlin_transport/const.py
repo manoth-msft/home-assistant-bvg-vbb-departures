@@ -29,6 +29,7 @@ CONF_SELECTED_STOP = "selected_stop"
 CONF_DEPARTURES_EXCLUDED_STOPS = "excluded_stops"
 CONF_DEPARTURES_WALKING_TIME = "walking_time"
 CONF_DEPARTURES_DIRECTION = "direction"
+CONF_DEPARTURES_DIRECTION_NAME = "direction_name"  # v0.1.5: Clear name of direction for BVG filtering
 CONF_DEPARTURES_DURATION = "duration"
 CONF_EXCLUDE_RINGBAHN_CLOCKWISE = "exclude_ringbahn_clockwise"
 CONF_EXCLUDE_RINGBAHN_COUNTERCLOCKWISE = "exclude_ringbahn_counterclockwise"

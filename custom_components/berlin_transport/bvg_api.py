@@ -11,6 +11,9 @@ from typing import Any
 import aiohttp
 import async_timeout
 
+from .bvg_departure import parse_bvg_departures
+from .departure import Departure
+
 _LOGGER = logging.getLogger(__name__)
 
 BVG_DEPARTURE_BOARD_URL = "https://www.bvg.de/connection-search/v1/departureBoard"
@@ -95,3 +98,50 @@ async def fetch_bvg_departures(
     ) as ex:
         _log_bvg_error("BVG API error", stop_name, ex)
         return None
+
+
+async def fetch_and_parse_bvg_departures(
+    session: aiohttp.ClientSession,
+    stop_name: str,
+    max_journeys: int = 30,
+    timeout_seconds: int = 240,
+    direction_filter: str | None = None,
+    transport_type_filters: dict[str, bool] | None = None,
+) -> list[Departure] | None:
+    """Fetch and parse BVG departures with optional filtering.
+    
+    Combines fetch_bvg_departures() and parse_bvg_departures() into a single
+    call, applying direction and transport type filters to match the behavior
+    of transport.rest API filtering.
+    
+    Args:
+        session: aiohttp ClientSession
+        stop_name: Stop name (not ID)
+        max_journeys: Maximum number of journeys to return
+        timeout_seconds: Request timeout in seconds
+        direction_filter: Optional direction string (e.g., "Hauptbahnhof").
+                         Only departures matching this direction are returned.
+                         None means no direction filtering.
+        transport_type_filters: Optional dict mapping line_type to bool.
+                               Keys: 'suburban', 'subway', 'tram', 'bus', 'ferry', 'express', 'regional'
+                               Only departures with enabled types are returned.
+                               None means no transport type filtering.
+    
+    Returns:
+        Filtered list of Departure objects, or None if API request fails.
+    """
+    response = await fetch_bvg_departures(
+        session=session,
+        stop_name=stop_name,
+        max_journeys=max_journeys,
+        timeout_seconds=timeout_seconds,
+    )
+    
+    if response is None:
+        return None
+    
+    return parse_bvg_departures(
+        response=response,
+        direction_filter=direction_filter,
+        transport_type_filters=transport_type_filters,
+    )

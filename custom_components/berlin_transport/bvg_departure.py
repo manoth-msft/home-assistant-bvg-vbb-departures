@@ -49,14 +49,26 @@ def _parse_iso_duration(duration_str: str) -> int:
 
 def parse_bvg_departures(
     response: dict[str, Any] | list[Any],
+    direction_filter: str | None = None,
+    transport_type_filters: dict[str, bool] | None = None,
 ) -> list[Departure]:
     """Parse BVG departureBoard API response into Departure objects.
+    
+    Optionally filters departures by direction and transport type to match
+    the behavior of the transport.rest API.
 
     Args:
         response: JSON response from BVG API
+        direction_filter: Optional direction string (e.g., "Hauptbahnhof").
+                         If provided, only departures matching this direction are returned.
+                         None means no direction filtering (return all).
+        transport_type_filters: Optional dict mapping line_type to bool.
+                               Keys: 'suburban', 'subway', 'tram', 'bus', 'ferry', 'express', 'regional'
+                               If provided, only departures with enabled types are returned.
+                               None means no transport type filtering (return all).
 
     Returns:
-        List of Departure objects.
+        List of Departure objects, optionally filtered by direction and transport type.
     """
     departures: list[Departure] = []
 
@@ -80,6 +92,14 @@ def parse_bvg_departures(
                 departures.append(departure)
         except (KeyError, TypeError, ValueError) as ex:
             _LOGGER.debug("Skipping malformed BVG element: %s", ex)
+
+    # Apply optional direction and transport type filters
+    if direction_filter or transport_type_filters:
+        departures = _filter_departures_by_type_and_direction(
+            departures,
+            direction_filter=direction_filter,
+            transport_type_filters=transport_type_filters,
+        )
 
     return departures
 
@@ -174,3 +194,43 @@ def _map_bvg_line_type(bvg_line_type: str) -> str:
         "longDistance": "ice",
     }
     return mapping.get(bvg_line_type, "bus")
+
+
+def _filter_departures_by_type_and_direction(
+    departures: list[Departure],
+    direction_filter: str | None = None,
+    transport_type_filters: dict[str, bool] | None = None,
+) -> list[Departure]:
+    """Filter departures by direction and transport type (CLIENT-SIDE).
+    
+    This function implements the filtering that the transport.rest API does
+    server-side, but must be done client-side for the BVG API which doesn't
+    support filtering parameters.
+    
+    Args:
+        departures: List of parsed Departure objects
+        direction_filter: Direction string to match (e.g., "Hauptbahnhof").
+                         If provided, only departures matching this direction are kept.
+        transport_type_filters: Dict mapping line_type to bool.
+                               If provided, only departures with enabled types are kept.
+    
+    Returns:
+        Filtered list of Departure objects.
+    """
+    filtered = departures
+    
+    # Apply direction filter (if configured)
+    if direction_filter:
+        filtered = [
+            d for d in filtered
+            if d.direction and direction_filter.lower() in d.direction.lower()
+        ]
+    
+    # Apply transport type filter (if configured)
+    if transport_type_filters:
+        filtered = [
+            d for d in filtered
+            if transport_type_filters.get(d.line_type, False)
+        ]
+    
+    return filtered
