@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4.1] - 2026-07-06
+### Fixed
+- Fixed expired departures appearing on dashboard
+
+### Changed
+- Increased departures fetch duration from 30 to 60 minutes
+- Increased API result limit from 15 to 30 departures per request
+
 ## [0.1.4] - 2026-07-05
 ### Fixed
 - Improved network error handling in stop search and departures fetch by also catching generic request failures

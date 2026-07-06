@@ -245,6 +245,7 @@ class TransportSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         now_utc = datetime.utcnow()
+        self._prune_cached_departures()
         cache_age_seconds = None
         if self.last_update_success:
             cache_age_seconds = int((now_utc - self.last_update_success).total_seconds())
