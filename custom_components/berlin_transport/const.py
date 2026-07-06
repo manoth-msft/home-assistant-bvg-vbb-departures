@@ -4,8 +4,9 @@ DOMAIN = "berlin_transport"
 SCAN_INTERVAL = timedelta(seconds=120)
 FALLBACK_TIME = timedelta(minutes=15)
 API_ENDPOINT = "https://v6.vbb.transport.rest"
-API_MAX_RESULTS = 30
+API_MAX_RESULTS = 20
 DEFAULT_DEPARTURES_DURATION = 60
+BVG_FALLBACK_ENABLED = False  # Feature gate: enable BVG API fallback mechanism
 
 DEFAULT_ICON = "mdi:clock"
 

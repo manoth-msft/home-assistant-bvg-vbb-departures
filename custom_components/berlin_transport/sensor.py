@@ -27,6 +27,7 @@ from .const import (  # pylint: disable=unused-import
     FALLBACK_TIME,
     API_ENDPOINT,
     API_MAX_RESULTS,
+    BVG_FALLBACK_ENABLED,
     DEFAULT_DEPARTURES_DURATION,
     CONF_DEPARTURES,
     CONF_DEPARTURES_DIRECTION,
@@ -105,10 +106,6 @@ async def async_setup_entry(
 
 
 class TransportSensor(SensorEntity):
-    departures: list[Departure] = []
-    _etag_by_request: dict[str, str] = {}
-    _cached_departures_by_request: dict[str, list[Departure]] = {}
-
     def __init__(
         self,
         hass: HomeAssistant,
@@ -117,7 +114,6 @@ class TransportSensor(SensorEntity):
     ) -> None:
         self.hass: HomeAssistant = hass
         self.config = config
-        self._entry_id = entry_id
         self.stop_id: int = config[CONF_DEPARTURES_STOP_ID]
         self.excluded_stops: str | None = config.get(CONF_DEPARTURES_EXCLUDED_STOPS)
         self.sensor_name: str | None = config.get(CONF_DEPARTURES_NAME)
@@ -132,7 +128,10 @@ class TransportSensor(SensorEntity):
         self.remove_berlin_suffix: bool = config.get(CONF_REMOVE_BERLIN_SUFFIX) or False
         self.show_api_line_colors: bool = config.get(CONF_SHOW_API_LINE_COLORS) or False
         self.session = async_get_clientsession(hass)
-        self.departures = []
+        # Instance-level caches (not shared between sensor instances)
+        self.departures: list[Departure] = []
+        self._etag_by_request: dict[str, str] = {}
+        self._cached_departures_by_request: dict[str, list[Departure]] = {}
         self.last_update_success: datetime | None = None
         self._consecutive_failures = 0
         self._next_retry_at: datetime | None = None
@@ -237,7 +236,9 @@ class TransportSensor(SensorEntity):
 
     @property
     def unique_id(self) -> str:
-        return self._entry_id or f"stop_{self.stop_id}_{self.sensor_name}_departures"
+        # Use consistent format for backward compatibility (0.1.3 -> 0.1.4+ upgrades)
+        # Do NOT use entry_id as it changes unique_id between versions and causes sensor recreation
+        return f"stop_{self.stop_id}_{self.sensor_name}_departures"
 
     @property
     def native_value(self) -> str:
@@ -274,35 +275,43 @@ class TransportSensor(SensorEntity):
     async def async_update(self):
         now_utc = datetime.utcnow()
         
-        # Backoff active: try only BVG fallback API, don't try transport.rest yet
+        # Backoff active: try only BVG fallback API if enabled, don't try transport.rest yet
         if self._next_retry_at is not None and now_utc < self._next_retry_at:
             self._attr_available = bool(self.departures)
-            _LOGGER.debug(
-                "[BACKOFF] Stop %s in backoff until %s, attempting BVG API only",
-                self.stop_id,
-                self._next_retry_at,
-            )
             
-            # Try BVG fallback during backoff
-            departures = await self._fetch_bvg_fallback()
-            if departures is not None:
-                # BVG fallback successful during backoff
-                self._consecutive_failures = 0
-                self.last_update_success = now_utc
-                self._data_source = "bvg_api"
-                self._attr_available = True
-                self.departures = departures
-                _LOGGER.info(
-                    "[BACKOFF] BVG API provided departures for stop %s during backoff",
-                    self.stop_id,
-                )
-                return
-            
-            # BVG fallback also failed, use cache
-            if self.departures:
+            if BVG_FALLBACK_ENABLED:
                 _LOGGER.debug(
-                    "[BACKOFF] BVG API also failed for stop %s, using cached departures",
+                    "[BACKOFF] Stop %s in backoff until %s, attempting BVG API only",
                     self.stop_id,
+                    self._next_retry_at,
+                )
+                
+                # Try BVG fallback during backoff
+                departures = await self._fetch_bvg_fallback()
+                if departures is not None:
+                    # BVG fallback successful during backoff
+                    self._consecutive_failures = 0
+                    self.last_update_success = now_utc
+                    self._data_source = "bvg_api"
+                    self._attr_available = True
+                    self.departures = departures
+                    _LOGGER.info(
+                        "[BACKOFF] BVG API provided departures for stop %s during backoff",
+                        self.stop_id,
+                    )
+                    return
+                
+                # BVG fallback also failed, use cache
+                if self.departures:
+                    _LOGGER.debug(
+                        "[BACKOFF] BVG API also failed for stop %s, using cached departures",
+                        self.stop_id,
+                    )
+            else:
+                _LOGGER.debug(
+                    "Skipping API request for stop %s due to backoff until %s",
+                    self.stop_id,
+                    self._next_retry_at,
                 )
             return
 
@@ -312,6 +321,7 @@ class TransportSensor(SensorEntity):
             _LOGGER.info(
                 "[BACKOFF] Backoff expired for stop %s, switching back to transport.rest",
                 self.stop_id,
+            )
             )
 
         departures = await self.fetch_departures()
