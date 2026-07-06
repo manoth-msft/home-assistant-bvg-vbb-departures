@@ -379,7 +379,6 @@ class TransportSensor(SensorEntity):
         The aiohttp session is managed by Home Assistant and will be
         closed automatically, so no explicit cleanup is needed here.
         """
-        pass
 
     async def async_update(self) -> None:
         """Poll for departure updates from VBB/BVG APIs.
@@ -539,7 +538,9 @@ class TransportSensor(SensorEntity):
             return
 
         if isinstance(ex, aiohttp.ServerDisconnectedError):
-            _LOGGER.warning("[transport.rest] Server disconnected (stop_id=%s): %s", self.stop_id, ex)
+            _LOGGER.warning(
+                "[transport.rest] Server disconnected (stop_id=%s): %s", self.stop_id, ex
+            )
             return
 
         if isinstance(ex, aiohttp.ClientError):
@@ -721,7 +722,8 @@ class TransportSensor(SensorEntity):
             now_utc = self._get_now_utc()
             self._cache_request_keys[request_key] = now_utc
 
-            # Remove entries older than CACHE_TTL_SECONDS (user changed config or direction is outdated)
+            # Remove entries older than CACHE_TTL_SECONDS
+            # (user changed config or direction is outdated)
             expired_keys = [
                 k for k, t in self._cache_request_keys.items()
                 if (now_utc - t).total_seconds() > CACHE_TTL_SECONDS
