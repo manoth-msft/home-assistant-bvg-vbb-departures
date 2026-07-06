@@ -110,7 +110,7 @@ class TransportSensor(SensorEntity):
         self,
         hass: HomeAssistant,
         config: Mapping[str, Any],
-        entry_id: str | None = None,
+        entry_id: str | None = None,  # pylint: disable=unused-argument
     ) -> None:
         self.hass: HomeAssistant = hass
         self.config = config
@@ -275,47 +275,12 @@ class TransportSensor(SensorEntity):
             "backoff_until": self._next_retry_at,
         }
 
-    async def async_update(self):
+    async def async_update(self) -> None:
         now_utc = datetime.now(timezone.utc)
-        
-        # Backoff active: try only BVG fallback API if enabled, don't try transport.rest yet
+
+        # Check if we're in backoff period
         if self._next_retry_at is not None and now_utc < self._next_retry_at:
-            self._attr_available = bool(self.departures)
-            
-            if BVG_FALLBACK_ENABLED:
-                _LOGGER.debug(
-                    "[BACKOFF] Stop %s in backoff until %s, attempting BVG API only",
-                    self.stop_id,
-                    self._next_retry_at,
-                )
-                
-                # Try BVG fallback during backoff
-                departures = await self._fetch_bvg_fallback()
-                if departures is not None:
-                    # BVG fallback successful during backoff
-                    self._consecutive_failures = 0
-                    self.last_update_success = now_utc
-                    self._data_source = "bvg_api"
-                    self._attr_available = True
-                    self.departures = departures
-                    _LOGGER.info(
-                        "[BACKOFF] BVG API provided departures for stop %s during backoff",
-                        self.stop_id,
-                    )
-                    return
-                
-                # BVG fallback also failed, use cache
-                if self.departures:
-                    _LOGGER.debug(
-                        "[BACKOFF] BVG API also failed for stop %s, using cached departures",
-                        self.stop_id,
-                    )
-            else:
-                _LOGGER.debug(
-                    "Skipping API request for stop %s due to backoff until %s",
-                    self.stop_id,
-                    self._next_retry_at,
-                )
+            await self._handle_backoff_period(now_utc)
             return
 
         # Backoff finished: reset fallback flag and try transport.rest again
@@ -326,42 +291,81 @@ class TransportSensor(SensorEntity):
                 self.stop_id,
             )
 
+        # Attempt to fetch departures from primary API
         departures = await self.fetch_departures()
         if departures is None:
-            self._consecutive_failures += 1
-            backoff_seconds = min(
-                900,
-                SCAN_INTERVAL.total_seconds()
-                * (2 ** (self._consecutive_failures - 1)),
-            )
-            self._next_retry_at = now_utc + timedelta(seconds=backoff_seconds)
-            self._using_fallback = True
+            await self._handle_failed_fetch(now_utc)
+        else:
+            self._handle_successful_fetch(departures, now_utc)
 
-            self._attr_available = bool(self.departures)
-            if self.departures:
-                if self._is_within_fallback(now_utc):
-                    _LOGGER.warning(
-                        "Using cached departures for stop %s after API failure "
-                        "(%s consecutive failures)",
-                        self.stop_id,
-                        self._consecutive_failures,
-                    )
-                else:
-                    _LOGGER.warning(
-                        "Using stale cached departures for stop %s after API failure "
-                        "(%s consecutive failures)",
-                        self.stop_id,
-                        self._consecutive_failures,
-                    )
-            else:
-                _LOGGER.warning(
-                    "No cached departures available for stop %s after API failure "
-                    "(%s consecutive failures)",
-                    self.stop_id,
-                    self._consecutive_failures,
-                )
+    async def _handle_backoff_period(self, now_utc: datetime) -> None:
+        """Handle requests during backoff period."""
+        self._attr_available = bool(self.departures)
+
+        if not BVG_FALLBACK_ENABLED:
+            _LOGGER.debug(
+                "Skipping API request for stop %s due to backoff until %s",
+                self.stop_id,
+                self._next_retry_at,
+            )
             return
 
+        _LOGGER.debug(
+            "[BACKOFF] Stop %s in backoff until %s, attempting BVG API only",
+            self.stop_id,
+            self._next_retry_at,
+        )
+
+        # Try BVG fallback during backoff
+        departures = await self._fetch_bvg_fallback()
+        if departures is not None:
+            self._consecutive_failures = 0
+            self.last_update_success = now_utc
+            self._data_source = "bvg_api"
+            self._attr_available = True
+            self.departures = departures
+            _LOGGER.info(
+                "[BACKOFF] BVG API provided departures for stop %s during backoff",
+                self.stop_id,
+            )
+
+    async def _handle_failed_fetch(self, now_utc: datetime) -> None:
+        """Handle failed API fetch with exponential backoff."""
+        self._consecutive_failures += 1
+        backoff_seconds = min(
+            900,
+            SCAN_INTERVAL.total_seconds() * (2 ** (self._consecutive_failures - 1)),
+        )
+        self._next_retry_at = now_utc + timedelta(seconds=backoff_seconds)
+        self._using_fallback = True
+        self._attr_available = bool(self.departures)
+
+        if not self.departures:
+            _LOGGER.warning(
+                "No cached departures available for stop %s after API failure "
+                "(%s consecutive failures)",
+                self.stop_id,
+                self._consecutive_failures,
+            )
+            return
+
+        if self._is_within_fallback(now_utc):
+            _LOGGER.warning(
+                "Using cached departures for stop %s after API failure "
+                "(%s consecutive failures)",
+                self.stop_id,
+                self._consecutive_failures,
+            )
+        else:
+            _LOGGER.warning(
+                "Using stale cached departures for stop %s after API failure "
+                "(%s consecutive failures)",
+                self.stop_id,
+                self._consecutive_failures,
+            )
+
+    def _handle_successful_fetch(self, departures: list[Departure], now_utc: datetime) -> None:
+        """Handle successful API fetch."""
         self._consecutive_failures = 0
         self._next_retry_at = None
         self._using_fallback = False
