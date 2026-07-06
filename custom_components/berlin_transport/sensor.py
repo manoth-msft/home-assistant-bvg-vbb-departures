@@ -287,7 +287,7 @@ class TransportSensor(SensorEntity):
     def icon(self) -> str:
         next_departure = self.next_departure()
         if next_departure:
-            return next_departure.icon
+            return next_departure.icon or DEFAULT_ICON
         return DEFAULT_ICON
 
     @property
