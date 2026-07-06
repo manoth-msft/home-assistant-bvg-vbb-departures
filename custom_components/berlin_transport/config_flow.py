@@ -1,5 +1,6 @@
 # mypy: disable-error-code="attr-defined,call-arg"
 """The Berlin (BVG) and Brandenburg (VBB) transport integration."""
+
 from __future__ import annotations
 
 import logging
@@ -28,7 +29,7 @@ from .const import (
     CONF_EXCLUDE_RINGBAHN_CLOCKWISE,
     CONF_EXCLUDE_RINGBAHN_COUNTERCLOCKWISE,
     CONF_REMOVE_BERLIN_SUFFIX,
-    DOMAIN, # noqa
+    DOMAIN,  # noqa
 )
 
 from .sensor import TRANSPORT_TYPES_SCHEMA
@@ -57,7 +58,10 @@ NAME_SCHEMA = vol.Schema(
     }
 )
 
-async def get_stop_id(session: aiohttp.ClientSession, name: str) -> Optional[list[dict[str, Any]]]:
+
+async def get_stop_id(
+    session: aiohttp.ClientSession, name: str
+) -> Optional[list[dict[str, Any]]]:
     stops: Any = []
     try:
         async with async_timeout.timeout(240):
@@ -95,10 +99,14 @@ async def get_stop_id(session: aiohttp.ClientSession, name: str) -> Optional[lis
     except TimeoutError as ex:
         _LOGGER.warning("Stop search timeout (query=%s): %s", name, ex)
     except Exception as ex:  # pylint: disable=broad-exception-caught
-        _LOGGER.exception("Unexpected error while searching stop IDs (query=%s): %s", name, ex)
+        _LOGGER.exception(
+            "Unexpected error while searching stop IDs (query=%s): %s", name, ex
+        )
 
     if not isinstance(stops, list):
-        _LOGGER.warning("API returned unexpected stop search payload type for query '%s'", name)
+        _LOGGER.warning(
+            "API returned unexpected stop search payload type for query '%s'", name
+        )
         return []
 
     _LOGGER.debug("OK: found %s stops for query '%s'", len(stops), name)
@@ -121,7 +129,7 @@ def list_stops(stops) -> Optional[vol.Schema]:
                         f"{stop[CONF_DEPARTURES_NAME]} [{stop[CONF_DEPARTURES_STOP_ID]}]"
                         for stop in stops
                     ],
-                    mode=selector.SelectSelectorMode.DROPDOWN
+                    mode=selector.SelectSelectorMode.DROPDOWN,
                 )
             )
         }
@@ -150,10 +158,14 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={},
             )
         session = async_get_clientsession(self.hass)
-        self.data[CONF_FOUND_STOPS] = await get_stop_id(session, user_input[CONF_SEARCH])
+        self.data[CONF_FOUND_STOPS] = await get_stop_id(
+            session, user_input[CONF_SEARCH]
+        )
 
         _LOGGER.debug(
-            f"OK: found stops for {user_input[CONF_SEARCH]}: {self.data[CONF_FOUND_STOPS]}"
+            "OK: found stops for query '%s': %s stops",
+            user_input[CONF_SEARCH],
+            len(self.data[CONF_FOUND_STOPS]),
         )
 
         return await self.async_step_stop()
@@ -169,12 +181,15 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={},
             )
 
-        selected_stop = next((
-            (stop[CONF_DEPARTURES_NAME], stop[CONF_DEPARTURES_STOP_ID])
-            for stop in self.data[CONF_FOUND_STOPS]
-            if user_input[CONF_SELECTED_STOP]
-            == f"{stop[CONF_DEPARTURES_NAME]} [{stop[CONF_DEPARTURES_STOP_ID]}]"
-        ), None)
+        selected_stop = next(
+            (
+                (stop[CONF_DEPARTURES_NAME], stop[CONF_DEPARTURES_STOP_ID])
+                for stop in self.data[CONF_FOUND_STOPS]
+                if user_input[CONF_SELECTED_STOP]
+                == f"{stop[CONF_DEPARTURES_NAME]} [{stop[CONF_DEPARTURES_STOP_ID]}]"
+            ),
+            None,
+        )
         if selected_stop is None:
             return self.async_show_form(
                 step_id="stop",
@@ -185,7 +200,7 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             self.data[CONF_DEPARTURES_NAME],
             self.data[CONF_DEPARTURES_STOP_ID],
         ) = selected_stop
-        _LOGGER.debug(f"OK: selected stop {selected_stop[0]} [{selected_stop[1]}]")
+        _LOGGER.debug("OK: selected stop '%s' [%s]", selected_stop[0], selected_stop[1])
 
         return await self.async_step_details()
 

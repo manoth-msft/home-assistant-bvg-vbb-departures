@@ -8,7 +8,11 @@ If you updated to 0.1.4.0 and adjusted your dashboards to use the `_2` suffixed 
 
 ### Fixed
 - **CRITICAL:** Fixed sensor recreation issue when updating from 0.1.3.x to 0.1.4.x. Sensor entity IDs are now preserved during updates (no more `_2` suffix)
+- Fixed timezone crash in expired departures pruning (naive vs timezone-aware datetime comparison)
+- Fixed UTC inconsistency throughout codebase (replaced deprecated `datetime.utcnow()` with `datetime.now(timezone.utc)`)
+- Fixed unbounded memory growth in ETag cache (now keeps max 10 recent request keys with automatic cleanup)
 - Fixed expired departures appearing on dashboard
+- Improved logging with proper % formatting instead of f-strings for better Home Assistant structured logging
 - Increased departures duration from 30 to 60 minutes
 - Increased API results from 15 to 20 per request
 

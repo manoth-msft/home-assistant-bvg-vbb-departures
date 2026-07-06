@@ -4,6 +4,7 @@ Uses the unofficial BVG connection-search API endpoints:
 - GET https://www.bvg.de/connection-search/v1/departureBoard
   ?lang=de&locationName=<stop-name>&maxJourneys=<count>
 """
+
 import logging
 from typing import Any
 

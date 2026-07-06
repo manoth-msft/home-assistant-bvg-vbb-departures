@@ -2,6 +2,7 @@
 
 Converts BVG departureBoard API responses to Departure objects.
 """
+
 import logging
 import re
 from datetime import datetime, timezone
@@ -118,7 +119,9 @@ def _parse_bvg_element(element: dict[str, Any]) -> Departure | None:
         timestamp_str = f"{date_str}T{time_str}"
         timestamp = datetime.fromisoformat(timestamp_str).replace(tzinfo=timezone.utc)
     except (ValueError, TypeError) as ex:
-        _LOGGER.debug("Failed to parse BVG timestamp (%s %s): %s", date_str, time_str, ex)
+        _LOGGER.debug(
+            "Failed to parse BVG timestamp (%s %s): %s", date_str, time_str, ex
+        )
         return None
 
     # Map line type and get visuals
@@ -149,7 +152,7 @@ def _parse_bvg_element(element: dict[str, Any]) -> Departure | None:
 def _map_bvg_line_type(bvg_line_type: str) -> str:
     """Map BVG line type name to standard line type.
 
-    BVG uses: bus, tram, subway, suburban, regional, regionalExp, 
+    BVG uses: bus, tram, subway, suburban, regional, regionalExp,
               longDistance, express
 
     Our types: bus, tram, subway, suburban, regional, express, ice

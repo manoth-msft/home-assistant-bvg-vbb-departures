@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 import copy
 from typing import Any, Mapping
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import aiohttp
 import async_timeout
@@ -138,6 +138,8 @@ class TransportSensor(SensorEntity):
         self._attr_available: bool = True
         self._data_source: str = "transport.rest"  # Track which API provided current data
         self._using_fallback: bool = False  # True when in fallback mode (backoff active)
+        # Request cache tracking to prevent unbounded memory growth
+        self._cache_request_keys: set[str] = set()  # Track all request keys for cleanup
 
     def _is_within_fallback(self, now_utc: datetime) -> bool:
         return bool(
@@ -214,10 +216,11 @@ class TransportSensor(SensorEntity):
         )
 
     def _prune_cached_departures(self) -> None:
+        now_utc = datetime.now(timezone.utc)
         self.departures = [
             departure
             for departure in self.departures
-            if departure.timestamp >= datetime.now(departure.timestamp.tzinfo)
+            if departure.timestamp >= now_utc
         ]
 
     @property
@@ -249,7 +252,7 @@ class TransportSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        now_utc = datetime.utcnow()
+        now_utc = datetime.now(timezone.utc)
         self._prune_cached_departures()
         cache_age_seconds = None
         if self.last_update_success:
@@ -273,7 +276,7 @@ class TransportSensor(SensorEntity):
         }
 
     async def async_update(self):
-        now_utc = datetime.utcnow()
+        now_utc = datetime.now(timezone.utc)
         
         # Backoff active: try only BVG fallback API if enabled, don't try transport.rest yet
         if self._next_retry_at is not None and now_utc < self._next_retry_at:
@@ -321,7 +324,6 @@ class TransportSensor(SensorEntity):
             _LOGGER.info(
                 "[BACKOFF] Backoff expired for stop %s, switching back to transport.rest",
                 self.stop_id,
-            )
             )
 
         departures = await self.fetch_departures()
@@ -583,6 +585,20 @@ class TransportSensor(SensorEntity):
             self._cached_departures_by_request[request_key] = copy.deepcopy(
                 parsed_departures
             )
+            # Track request key and clean up old cache entries to prevent memory leak
+            if request_key not in self._cache_request_keys:
+                self._cache_request_keys.add(request_key)
+                # Keep only the 10 most recent request keys to prevent unbounded memory growth
+                if len(self._cache_request_keys) > 10:
+                    oldest_key = next(iter(self._cache_request_keys))
+                    self._cache_request_keys.discard(oldest_key)
+                    self._etag_by_request.pop(oldest_key, None)
+                    self._cached_departures_by_request.pop(oldest_key, None)
+                    _LOGGER.debug(
+                        "Removed old cache entry for stop %s (key=%s) to prevent memory leak",
+                        self.stop_id,
+                        oldest_key,
+                    )
             _LOGGER.debug(
                 "Stored ETag for stop %s (key=%s): %s (cached %s departures)",
                 self.stop_id,

@@ -54,7 +54,8 @@ class Departure:
                     and remark.get("summary")
                     and remark.get("id")
                 )
-            ] or None,
+            ]
+            or None,
         )
 
     def to_dict(self, show_api_line_colors: bool, walking_time: int):
