@@ -76,7 +76,7 @@ def parse_bvg_departures(
 
     for element in elements:
         try:
-            departure = _parse_bvg_element(element, stop_name)
+            departure = _parse_bvg_element(element)
             if departure:
                 departures.append(departure)
         except (KeyError, TypeError, ValueError) as ex:
@@ -85,12 +85,11 @@ def parse_bvg_departures(
     return departures
 
 
-def _parse_bvg_element(element: dict[str, Any], stop_name: str) -> Departure | None:
+def _parse_bvg_element(element: dict[str, Any]) -> Departure | None:
     """Parse single BVG element to Departure object.
 
     Args:
         element: Single element from BVG response
-        stop_name: Stop name for filtering
 
     Returns:
         Departure object or None if parsing fails.
@@ -101,7 +100,7 @@ def _parse_bvg_element(element: dict[str, Any], stop_name: str) -> Departure | N
     if not service or not departure_info:
         return None
 
-    # Extract basic fields
+    # Extract and validate basic fields
     line_name = service.get("name")
     line_type_name = service.get("lineTypeName")
     direction = service.get("direction")
@@ -109,10 +108,7 @@ def _parse_bvg_element(element: dict[str, Any], stop_name: str) -> Departure | N
     if not line_name or not line_type_name:
         return None
 
-    # Map BVG line type to our line type
-    line_type = _map_bvg_line_type(line_type_name)
-
-    # Compose timestamp from date + time
+    # Validate and compose timestamp
     date_str = departure_info.get("date")
     time_str = departure_info.get("time")
 
@@ -121,26 +117,19 @@ def _parse_bvg_element(element: dict[str, Any], stop_name: str) -> Departure | N
         return None
 
     try:
-        # Format: 2026-07-04 and 00:42:00
         timestamp_str = f"{date_str}T{time_str}"
-        # BVG uses Europe/Berlin timezone (UTC+2 in summer, UTC+1 in winter)
-        # Parse as naive datetime, then assume Europe/Berlin
-        timestamp = datetime.fromisoformat(timestamp_str).replace(
-            tzinfo=timezone.utc
-        )
+        timestamp = datetime.fromisoformat(timestamp_str).replace(tzinfo=timezone.utc)
     except (ValueError, TypeError) as ex:
         _LOGGER.debug("Failed to parse BVG timestamp (%s %s): %s", date_str, time_str, ex)
         return None
 
-    # Parse delay from ISO-8601 duration
-    delay_str = departure_info.get("delay", "PT0S")
-    delay_seconds = _parse_iso_duration(delay_str)
-
-    # Get visual properties
+    # Map line type and get visuals
+    line_type = _map_bvg_line_type(line_type_name)
     line_visuals = TRANSPORT_TYPE_VISUALS.get(line_type) or {}
 
-    # Generate trip ID (BVG doesn't provide it, so use hash of departure info)
+    # Generate trip ID and parse delay
     trip_id = f"bvg_{line_name}_{timestamp.isoformat()}_{direction}"
+    delay_seconds = _parse_iso_duration(departure_info.get("delay", "PT0S"))
 
     return Departure(
         trip_id=trip_id,
@@ -150,12 +139,12 @@ def _parse_bvg_element(element: dict[str, Any], stop_name: str) -> Departure | N
         time=timestamp.strftime("%H:%M"),
         direction=direction,
         icon=line_visuals.get("icon") or DEFAULT_ICON,
-        bg_color=None,  # BVG API doesn't provide colors
+        bg_color=None,
         fallback_color=line_visuals.get("color"),
-        location=None,  # BVG API doesn't provide location
-        cancelled=False,  # BVG API doesn't provide cancellation info
+        location=None,
+        cancelled=False,
         delay=delay_seconds if delay_seconds else None,
-        warnings=None,  # BVG API doesn't provide warnings
+        warnings=None,
     )
 
 

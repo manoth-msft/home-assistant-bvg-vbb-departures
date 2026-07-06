@@ -459,7 +459,7 @@ class TransportSensor(SensorEntity):
 
             return parsed_departures
 
-        except Exception as ex:
+        except (KeyError, TypeError, ValueError) as ex:
             _LOGGER.exception(
                 "[FALLBACK] BVG API parsing error for stop '%s' (stop_id=%s): %s",
                 self.sensor_name,
