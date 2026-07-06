@@ -21,21 +21,20 @@ def _log_bvg_error(error_type: str, stop_name: str, error: Exception) -> None:
     """Log BVG API errors consistently."""
     if isinstance(error, aiohttp.ClientResponseError):
         _LOGGER.warning(
-            "[BVG] HTTP error for stop '%s' (status=%s, message=%s)",
+            "[bvg_api] HTTP error for stop '%s' (status=%s)",
             stop_name,
             error.status,
-            error.message,
         )
     elif isinstance(error, aiohttp.ClientConnectorError):
-        _LOGGER.warning("[BVG] Connection error for stop '%s': %s", stop_name, error)
+        _LOGGER.warning("[bvg_api] Connection error for stop '%s': %s", stop_name, error)
     elif isinstance(error, aiohttp.ServerDisconnectedError):
-        _LOGGER.warning("[BVG] Server disconnected for stop '%s': %s", stop_name, error)
+        _LOGGER.warning("[bvg_api] Server disconnected for stop '%s': %s", stop_name, error)
     elif isinstance(error, aiohttp.ClientError):
-        _LOGGER.warning("[BVG] Client error for stop '%s': %s", stop_name, error)
+        _LOGGER.warning("[bvg_api] Client error for stop '%s': %s", stop_name, error)
     elif isinstance(error, TimeoutError):
-        _LOGGER.warning("[BVG] Request timeout for stop '%s': %s", stop_name, error)
+        _LOGGER.warning("[bvg_api] Request timeout for stop '%s': %s", stop_name, error)
     else:
-        _LOGGER.exception("[BVG] %s for stop '%s': %s", error_type, stop_name, error)
+        _LOGGER.exception("[bvg_api] %s for stop '%s': %s", error_type, stop_name, error)
 
 
 async def fetch_bvg_departures(
@@ -67,7 +66,7 @@ async def fetch_bvg_departures(
         }
 
         _LOGGER.debug(
-            "[BVG] Querying departureBoard API for stop '%s' (maxJourneys=%s)",
+            "[bvg_api] Querying departureBoard API for stop '%s' (maxJourneys=%s)",
             stop_name,
             max_journeys,
         )
@@ -81,7 +80,7 @@ async def fetch_bvg_departures(
             response.raise_for_status()
             result = await response.json()
             _LOGGER.debug(
-                "[BVG] Received response from departureBoard API for stop '%s' (status=%s)",
+                "[bvg_api] Received response from departureBoard API for stop '%s' (status=%s)",
                 stop_name,
                 response.status,
             )

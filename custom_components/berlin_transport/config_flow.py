@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 
-from typing import Any, Optional
+from typing import Any
 import aiohttp
 import async_timeout
 import voluptuous as vol
@@ -61,7 +61,16 @@ NAME_SCHEMA = vol.Schema(
 
 async def get_stop_id(
     session: aiohttp.ClientSession, name: str
-) -> Optional[list[dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
+    """Search for VBB stops by name using the transport.rest API.
+    
+    Args:
+        session: aiohttp ClientSession for making HTTP requests
+        name: Stop name or partial name to search for
+        
+    Returns:
+        List of matching stops with fields like 'name' and 'id', or None if search fails.
+    """
     stops: Any = []
     try:
         async with async_timeout.timeout(240):
@@ -78,38 +87,37 @@ async def get_stop_id(
         if ex.status == 429:
             retry_after = ex.headers.get("Retry-After") if ex.headers else None
             _LOGGER.warning(
-                "Stop search rate limited (query=%s, status=%s, retry_after=%s)",
+                "[config_flow] Stop search rate limited (query=%s, status=%s, retry_after=%s)",
                 name,
                 ex.status,
                 retry_after,
             )
         else:
             _LOGGER.warning(
-                "Stop search HTTP error (query=%s, status=%s, message=%s)",
+                "[config_flow] Stop search HTTP error (query=%s, status=%s)",
                 name,
                 ex.status,
-                ex.message,
             )
     except aiohttp.ClientConnectorError as ex:
-        _LOGGER.warning("Stop search connection error (query=%s): %s", name, ex)
+        _LOGGER.warning("[config_flow] Stop search connection error (query=%s): %s", name, ex)
     except aiohttp.ServerDisconnectedError as ex:
-        _LOGGER.warning("Stop search server disconnected (query=%s): %s", name, ex)
+        _LOGGER.warning("[config_flow] Stop search server disconnected (query=%s): %s", name, ex)
     except aiohttp.ClientError as ex:
-        _LOGGER.warning("Stop search client error (query=%s): %s", name, ex)
+        _LOGGER.warning("[config_flow] Stop search client error (query=%s): %s", name, ex)
     except TimeoutError as ex:
-        _LOGGER.warning("Stop search timeout (query=%s): %s", name, ex)
+        _LOGGER.warning("[config_flow] Stop search timeout (query=%s): %s", name, ex)
     except Exception as ex:  # pylint: disable=broad-exception-caught
         _LOGGER.exception(
-            "Unexpected error while searching stop IDs (query=%s): %s", name, ex
+            "[config_flow] Unexpected error while searching stop IDs (query=%s): %s", name, ex
         )
 
     if not isinstance(stops, list):
         _LOGGER.warning(
-            "API returned unexpected stop search payload type for query '%s'", name
+            "[config_flow] API returned unexpected stop search payload type for query '%s'", name
         )
         return []
 
-    _LOGGER.debug("OK: found %s stops for query '%s'", len(stops), name)
+    _LOGGER.debug("[config_flow] Found %s stops for query '%s'", len(stops), name)
 
     # convert api data into objects
     return [
@@ -119,8 +127,16 @@ async def get_stop_id(
     ]
 
 
-def list_stops(stops) -> Optional[vol.Schema]:
-    """Provides a drop down list of stops"""
+def list_stops(stops: list[dict[str, Any]]) -> vol.Schema:
+    """Create a dropdown schema for selecting from a list of stops.
+    
+    Args:
+        stops: List of stop dictionaries containing CONF_DEPARTURES_NAME and
+               CONF_DEPARTURES_STOP_ID keys
+        
+    Returns:
+        Voluptuous schema with a required dropdown selector containing stop options.
+    """
     schema = vol.Schema(
         {
             vol.Required(CONF_SELECTED_STOP): selector.SelectSelector(
@@ -163,7 +179,7 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         _LOGGER.debug(
-            "OK: found stops for query '%s': %s stops",
+            "[config_flow] Found stops for query '%s': %s stops",
             user_input[CONF_SEARCH],
             len(self.data[CONF_FOUND_STOPS]),
         )
@@ -200,7 +216,7 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             self.data[CONF_DEPARTURES_NAME],
             self.data[CONF_DEPARTURES_STOP_ID],
         ) = selected_stop
-        _LOGGER.debug("OK: selected stop '%s' [%s]", selected_stop[0], selected_stop[1])
+        _LOGGER.debug("[config_flow] Selected stop '%s' [%s]", selected_stop[0], selected_stop[1])
 
         return await self.async_step_details()
 

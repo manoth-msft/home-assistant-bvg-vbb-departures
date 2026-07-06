@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from .const import TRANSPORT_TYPE_VISUALS, DEFAULT_ICON
@@ -22,6 +22,8 @@ class Departure:
     cancelled: bool = False
     delay: int | None = None
     warnings: list[dict[str, str]] | None = None
+    # Internal cache for hash computation (not part of equality/repr)
+    _hash_cache: int | None = field(default=None, init=False, repr=False, compare=False)
 
     @classmethod
     def from_dict(cls, source):
@@ -77,17 +79,18 @@ class Departure:
 
     # Make the object hashable and use all infos that can be displayed in the
     # frontend
-    def __hash__(self):
-        # The value of colors and walking time doesn't matter, it just needs to
-        # be the same for all evaluations of this function
-        data = self.to_dict(show_api_line_colors=False, walking_time=0)
-        # Warnings are dicts (not hashable), replace with a sorted tuple of IDs.
-        data["warnings"] = (
-            tuple(sorted(warning["id"] for warning in data["warnings"]))
-            if data["warnings"]
-            else None
-        )
-        # Dictionaries are not hashable, so use the items, sort them for
-        # reproducibility. Convert it to a tuple, since lists are also not
-        # hashable
-        return hash(tuple(sorted(data.items())))
+    def __hash__(self) -> int:
+        # Return cached hash if available (Departure objects are effectively immutable)
+        if self._hash_cache is not None:
+            return self._hash_cache
+        
+        # Compute hash once from essential uniqueness fields
+        # trip_id + timestamp are unique per departure, so use simplified hash
+        # instead of expensive to_dict() + sort operations
+        self._hash_cache = hash((
+            self.trip_id,
+            self.timestamp,
+            self.line_name,
+            self.direction,
+        ))
+        return self._hash_cache

@@ -8,7 +8,19 @@ API_MAX_RESULTS = 20
 DEFAULT_DEPARTURES_DURATION = 60
 BVG_FALLBACK_ENABLED = False  # Feature gate: enable BVG API fallback mechanism
 
+# API Request timeouts (seconds)
+API_REQUEST_TIMEOUT = 240  # 4 minutes
+
+# Backoff configuration
+BACKOFF_BASE = 2  # Exponential backoff base (2^n)
+BACKOFF_MAX_SECONDS = 900  # 15 minutes maximum backoff
+
+# Cache management
+CACHE_TTL_SECONDS = 7200  # 2 hours: Time-to-live for cached request variants
+
+# Default values
 DEFAULT_ICON = "mdi:clock"
+DEFAULT_WALKING_TIME = 1  # minutes
 
 CONF_DEPARTURES = "departures"
 CONF_DEPARTURES_NAME = "name"

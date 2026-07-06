@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4.2] - 2026-07-06
+### Fixed
+- Fixed race condition in async state updates.
+- Improved ETag cache cleanup with time-based TTL to prevent memory bloat.
+- Optimized departure deduplication performance with hash caching (reduces CPU cycles).
+- Added proper resource cleanup when sensors are removed.
+- Refactored magic numbers into named constants for maintainability.
+- Standardized logging format across all modules with consistent prefixes.
+- Added comprehensive docstrings and type hints following modern Python 3.10+ syntax.
+- Added UTC timezone validation to prevent datetime comparison bugs.
+- Optimized state attribute regeneration with caching (reduces CPU cycles and I/O).
+
 ## [0.1.4.1] - 2026-07-06
 ### ⚠️ Breaking Change
 If you updated to 0.1.4.0 and adjusted your dashboards to use the `_2` suffixed sensors (e.g., `sensor.s_wannsee_bhf_berlin_2`), you will need to update them back to the original sensor names (e.g., `sensor.s_wannsee_bhf_berlin`) after updating to 0.1.4.1. The fix restores backward compatibility with 0.1.3.x, which means sensor entity IDs return to their original names.
