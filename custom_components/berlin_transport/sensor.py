@@ -436,7 +436,6 @@ class TransportSensor(SensorEntity):
         try:
             parsed_departures = parse_bvg_departures(
                 response=bvg_response,
-                stop_name=self.sensor_name,
             )
 
             if not parsed_departures:

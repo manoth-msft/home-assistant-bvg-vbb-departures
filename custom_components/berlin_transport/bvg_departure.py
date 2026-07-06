@@ -48,13 +48,11 @@ def _parse_iso_duration(duration_str: str) -> int:
 
 def parse_bvg_departures(
     response: dict[str, Any] | list[Any],
-    stop_name: str,
 ) -> list[Departure]:
     """Parse BVG departureBoard API response into Departure objects.
 
     Args:
         response: JSON response from BVG API
-        stop_name: Stop name (for filtering/logging)
 
     Returns:
         List of Departure objects.
