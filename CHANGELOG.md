@@ -3,12 +3,18 @@
 All notable changes to this project will be documented in this file.
 
 ## [Upcoming]
+### Added
+- Added BVG API fallback mechanism: if transport.rest fails, sensor automatically attempts to fetch departures directly from the BVG website API as a secondary source for improved reliability (note: BVG API only covers Berlin, so fallback is not available for VBB-only stops outside Berlin)
+- New sensor attribute `data_source` to indicate which API provided the current departures: `transport.rest` (primary) or `bvg_api` (fallback)
+
 ### Fixed
 - Fixed expired departures appearing on dashboard
 
 ### Changed
 - Increased departures fetch duration from 30 to 60 minutes
 - Increased API result limit from 15 to 30 departures per request
+- Improved debug logging with `[FALLBACK]` and `[BVG]` tags to clearly show when fallback mechanism is used
+- **Improved backoff behavior**: When transport.rest fails and backoff is activated, the sensor now attempts the BVG API fallback during the backoff period instead of remaining idle. Once backoff expires, the sensor automatically returns to trying transport.rest as the primary source.
 
 ## [0.1.4] - 2026-07-05
 ### Fixed

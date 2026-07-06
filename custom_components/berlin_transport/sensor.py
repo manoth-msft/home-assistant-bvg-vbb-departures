@@ -49,6 +49,8 @@ from .const import (  # pylint: disable=unused-import
     STOP_SUFFIX_BERLIN,
 )
 from .departure import Departure
+from .bvg_api import fetch_bvg_departures
+from .bvg_departure import parse_bvg_departures
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -135,6 +137,8 @@ class TransportSensor(SensorEntity):
         self._consecutive_failures = 0
         self._next_retry_at: datetime | None = None
         self._attr_available: bool = True
+        self._data_source: str = "transport.rest"  # Track which API provided current data
+        self._using_fallback: bool = False  # True when in fallback mode (backoff active)
 
     def _is_within_fallback(self, now_utc: datetime) -> bool:
         return bool(
@@ -255,6 +259,7 @@ class TransportSensor(SensorEntity):
                 departure.to_dict(self.show_api_line_colors, self.walking_time)
                 for departure in self.departures or []
             ],
+            "data_source": self._data_source,
             "last_update_success": self.last_update_success,
             "last_updated": self.last_update_success,
             "last_updated_ago": self._last_updated_ago(now_utc),
@@ -268,14 +273,46 @@ class TransportSensor(SensorEntity):
 
     async def async_update(self):
         now_utc = datetime.utcnow()
+        
+        # Backoff active: try only BVG fallback API, don't try transport.rest yet
         if self._next_retry_at is not None and now_utc < self._next_retry_at:
             self._attr_available = bool(self.departures)
             _LOGGER.debug(
-                "Skipping API request for stop %s due to backoff until %s",
+                "[BACKOFF] Stop %s in backoff until %s, attempting BVG API only",
                 self.stop_id,
                 self._next_retry_at,
             )
+            
+            # Try BVG fallback during backoff
+            departures = await self._fetch_bvg_fallback()
+            if departures is not None:
+                # BVG fallback successful during backoff
+                self._consecutive_failures = 0
+                self.last_update_success = now_utc
+                self._data_source = "bvg_api"
+                self._attr_available = True
+                self.departures = departures
+                _LOGGER.info(
+                    "[BACKOFF] BVG API provided departures for stop %s during backoff",
+                    self.stop_id,
+                )
+                return
+            
+            # BVG fallback also failed, use cache
+            if self.departures:
+                _LOGGER.debug(
+                    "[BACKOFF] BVG API also failed for stop %s, using cached departures",
+                    self.stop_id,
+                )
             return
+
+        # Backoff finished: reset fallback flag and try transport.rest again
+        if self._using_fallback:
+            self._using_fallback = False
+            _LOGGER.info(
+                "[BACKOFF] Backoff expired for stop %s, switching back to transport.rest",
+                self.stop_id,
+            )
 
         departures = await self.fetch_departures()
         if departures is None:
@@ -286,6 +323,7 @@ class TransportSensor(SensorEntity):
                 * (2 ** (self._consecutive_failures - 1)),
             )
             self._next_retry_at = now_utc + timedelta(seconds=backoff_seconds)
+            self._using_fallback = True
 
             self._attr_available = bool(self.departures)
             if self.departures:
@@ -314,7 +352,9 @@ class TransportSensor(SensorEntity):
 
         self._consecutive_failures = 0
         self._next_retry_at = None
+        self._using_fallback = False
         self.last_update_success = now_utc
+        self._data_source = "transport.rest"
         self._attr_available = True
         self.departures = departures
 
@@ -354,6 +394,79 @@ class TransportSensor(SensorEntity):
             return
 
         _LOGGER.exception("Unexpected API error for stop %s: %s", self.stop_id, ex)
+
+    async def _fetch_bvg_fallback(self) -> list[Departure] | None:
+        """Fallback to BVG API when transport.rest fails.
+
+        Note: BVG API only covers Berlin. For VBB stops outside Berlin, this fallback
+        will not work. In such cases, the sensor will continue with cached data or
+        report no_data if no cache is available.
+
+        Returns:
+            List of Departure objects from BVG API or None on error.
+        """
+        if not self.sensor_name:
+            _LOGGER.warning(
+                "Cannot use BVG fallback for stop %s (no sensor_name)",
+                self.stop_id,
+            )
+            return None
+
+        _LOGGER.debug(
+            "[FALLBACK] Attempting BVG API for stop '%s' (stop_id=%s)",
+            self.sensor_name,
+            self.stop_id,
+        )
+
+        bvg_response = await fetch_bvg_departures(
+            session=self.session,
+            stop_name=self.sensor_name,
+            max_journeys=API_MAX_RESULTS,
+        )
+
+        if bvg_response is None:
+            _LOGGER.warning(
+                "[FALLBACK] BVG API request failed for stop '%s' (stop_id=%s). "
+                "Note: BVG API only covers Berlin; this is expected for VBB stops outside Berlin.",
+                self.sensor_name,
+                self.stop_id,
+            )
+            return None
+
+        try:
+            parsed_departures = parse_bvg_departures(
+                response=bvg_response,
+                stop_name=self.sensor_name,
+            )
+
+            if not parsed_departures:
+                _LOGGER.warning(
+                    "[FALLBACK] BVG API returned empty response for stop '%s' (stop_id=%s). "
+                    "This may indicate the stop is not covered by BVG API (only covers Berlin).",
+                    self.sensor_name,
+                    self.stop_id,
+                )
+                return None
+
+            self._data_source = "bvg_api"  # Mark that we're using fallback source
+            _LOGGER.info(
+                "[FALLBACK] SUCCESS for stop '%s' (stop_id=%s): got %s departures from BVG API "
+                "(note: limited data - no warnings or vehicle cancellations)",
+                self.sensor_name,
+                self.stop_id,
+                len(parsed_departures),
+            )
+
+            return parsed_departures
+
+        except Exception as ex:
+            _LOGGER.exception(
+                "[FALLBACK] BVG API parsing error for stop '%s' (stop_id=%s): %s",
+                self.sensor_name,
+                self.stop_id,
+                ex,
+            )
+            return None
 
     async def fetch_directional_departure(self, direction: str | None) -> list[Departure] | None:
         departures: dict[str, Any] = {}
