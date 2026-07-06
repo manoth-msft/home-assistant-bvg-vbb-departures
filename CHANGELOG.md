@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.4.1] - 2026-07-06
+## [Upcoming]
 ### Fixed
 - Fixed expired departures appearing on dashboard
 

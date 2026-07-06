@@ -65,7 +65,7 @@ Fertig 🎉
 
 - **Richtung**: Verwende `stop_id`, um Abfahrten nach Richtung zu filtern. Gib die `stop_id` einer Haltestelle entlang der gewünschten Linie oder des Endziels an. Mehrere Werte können als kommaseparierte Liste angegeben werden. Siehe [unten](#how-do-i-find-my-stop_id), wie du die `stop_id` findest.  
 - **Haltestellen ausschließen**: Liste von `stop_id`‑Werten, um nahegelegene Haltestellen auszuschließen. Mehrere Werte können als kommaseparierte Liste angegeben werden.  
-- **Zeitraum**: Derzeit fest auf 30 Minuten eingestellt und nicht konfigurierbar.  
+- **Zeitraum**: Derzeit fest auf 60 Minuten eingestellt und nicht konfigurierbar.  
 - **Gehminuten**: Gib die benötigte Zeit ein, um zur Haltestelle zu laufen. Dadurch werden nicht erreichbare Abfahrten ausgeblendet.  
 - **Offizielle VBB‑Linienfarben verwenden**: Optional können die offiziellen VBB‑Linienfarben aktiviert werden. Standardmäßig werden vordefinierte Farben genutzt.  
 - **Ringbahn ⟳/⟲ ausblenden**: Optional können Ringbahn‑Verbindungen im Uhrzeigersinn oder gegen den Uhrzeigersinn ausgeblendet werden.  
