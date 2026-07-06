@@ -1,6 +1,7 @@
 # mypy: disable-error-code="attr-defined"
 
 """The Berlin (BVG) and Brandenburg (VBB) transport integration."""
+
 from __future__ import annotations
 
 import logging
@@ -75,8 +76,12 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                 vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): cv.string,
                 vol.Optional(CONF_DEPARTURES_WALKING_TIME, default=1): cv.positive_int,
                 vol.Optional(CONF_SHOW_API_LINE_COLORS, default=False): cv.boolean,
-                vol.Optional(CONF_EXCLUDE_RINGBAHN_CLOCKWISE, default=False): cv.boolean,
-                vol.Optional(CONF_EXCLUDE_RINGBAHN_COUNTERCLOCKWISE, default=False): cv.boolean,
+                vol.Optional(
+                    CONF_EXCLUDE_RINGBAHN_CLOCKWISE, default=False
+                ): cv.boolean,
+                vol.Optional(
+                    CONF_EXCLUDE_RINGBAHN_COUNTERCLOCKWISE, default=False
+                ): cv.boolean,
                 vol.Optional(CONF_REMOVE_BERLIN_SUFFIX, default=False): cv.boolean,
                 **TRANSPORT_TYPES_SCHEMA,
             }
@@ -102,7 +107,9 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    async_add_entities([TransportSensor(hass, config_entry.data, config_entry.entry_id)], True)
+    async_add_entities(
+        [TransportSensor(hass, config_entry.data, config_entry.entry_id)], True
+    )
 
 
 class TransportSensor(SensorEntity):
@@ -121,7 +128,9 @@ class TransportSensor(SensorEntity):
         self.duration: int = DEFAULT_DEPARTURES_DURATION
         self.walking_time: int = config.get(CONF_DEPARTURES_WALKING_TIME) or 1
         # we add +1 minute anyway to delete the "just gone" transport
-        self.exclude_ringbahn_clockwise: bool = config.get(CONF_EXCLUDE_RINGBAHN_CLOCKWISE) or False
+        self.exclude_ringbahn_clockwise: bool = (
+            config.get(CONF_EXCLUDE_RINGBAHN_CLOCKWISE) or False
+        )
         self.exclude_ringbahn_counterclockwise: bool = (
             config.get(CONF_EXCLUDE_RINGBAHN_COUNTERCLOCKWISE) or False
         )
@@ -136,8 +145,12 @@ class TransportSensor(SensorEntity):
         self._consecutive_failures = 0
         self._next_retry_at: datetime | None = None
         self._attr_available: bool = True
-        self._data_source: str = "transport.rest"  # Track which API provided current data
-        self._using_fallback: bool = False  # True when in fallback mode (backoff active)
+        self._data_source: str = (
+            "transport.rest"  # Track which API provided current data
+        )
+        self._using_fallback: bool = (
+            False  # True when in fallback mode (backoff active)
+        )
         # Request cache tracking to prevent unbounded memory growth
         self._cache_request_keys: set[str] = set()  # Track all request keys for cleanup
 
@@ -218,9 +231,7 @@ class TransportSensor(SensorEntity):
     def _prune_cached_departures(self) -> None:
         now_utc = datetime.now(timezone.utc)
         self.departures = [
-            departure
-            for departure in self.departures
-            if departure.timestamp >= now_utc
+            departure for departure in self.departures if departure.timestamp >= now_utc
         ]
 
     @property
@@ -229,7 +240,7 @@ class TransportSensor(SensorEntity):
         if self.remove_berlin_suffix and name:
             name = name.replace(STOP_SUFFIX_BERLIN, "").strip()
         return name
-    
+
     @property
     def icon(self) -> str:
         next_departure = self.next_departure()
@@ -256,7 +267,9 @@ class TransportSensor(SensorEntity):
         self._prune_cached_departures()
         cache_age_seconds = None
         if self.last_update_success:
-            cache_age_seconds = int((now_utc - self.last_update_success).total_seconds())
+            cache_age_seconds = int(
+                (now_utc - self.last_update_success).total_seconds()
+            )
 
         return {
             "departures": [
@@ -364,7 +377,9 @@ class TransportSensor(SensorEntity):
                 self._consecutive_failures,
             )
 
-    def _handle_successful_fetch(self, departures: list[Departure], now_utc: datetime) -> None:
+    def _handle_successful_fetch(
+        self, departures: list[Departure], now_utc: datetime
+    ) -> None:
         """Handle successful API fetch."""
         self._consecutive_failures = 0
         self._next_retry_at = None
@@ -483,38 +498,85 @@ class TransportSensor(SensorEntity):
             )
             return None
 
-    async def fetch_directional_departure(self, direction: str | None) -> list[Departure] | None:
-        departures: dict[str, Any] = {}
-        request_headers: dict[str, str] = {}
+    def _build_transport_params(self, direction: str | None) -> dict[str, Any]:
+        """Build API request parameters."""
+        return {
+            "when": (
+                datetime.now(timezone.utc) + timedelta(minutes=self.walking_time)
+            ).isoformat(),
+            "results": API_MAX_RESULTS,
+            "duration": self.duration,
+            "direction": direction or "",
+            "suburban": str(bool(self.config.get(CONF_TYPE_SUBURBAN))).lower(),
+            "subway": str(bool(self.config.get(CONF_TYPE_SUBWAY))).lower(),
+            "tram": str(bool(self.config.get(CONF_TYPE_TRAM))).lower(),
+            "bus": str(bool(self.config.get(CONF_TYPE_BUS))).lower(),
+            "ferry": str(bool(self.config.get(CONF_TYPE_FERRY))).lower(),
+            "express": str(bool(self.config.get(CONF_TYPE_EXPRESS))).lower(),
+            "regional": str(bool(self.config.get(CONF_TYPE_REGIONAL))).lower(),
+        }
+
+    def _get_excluded_stops(self) -> list[str]:
+        """Parse excluded stops from config."""
+        if self.excluded_stops is None:
+            return []
+        return [
+            stop.strip()
+            for stop in self.excluded_stops.split(",")
+            if stop.strip()
+        ]
+
+    def _parse_departures(
+        self, departures_data: list[dict], excluded_stops: list[str]
+    ) -> list[Departure]:
+        """Parse departures from API response."""
+        parsed = []
+        for departure in departures_data:
+            if departure.get("stop", {}).get("id") in excluded_stops:
+                continue
+            try:
+                parsed.append(Departure.from_dict(departure))
+            except (KeyError, TypeError, ValueError) as ex:
+                _LOGGER.debug(
+                    "Skipping malformed departure for stop %s: %s",
+                    self.stop_id,
+                    ex,
+                )
+        return parsed
+
+    def _update_cache(
+        self, request_key: str, response_etag: str | None, parsed: list[Departure]
+    ) -> None:
+        """Update ETag and departure cache with cleanup."""
+        if response_etag:
+            self._etag_by_request[request_key] = response_etag
+            self._cached_departures_by_request[request_key] = copy.deepcopy(parsed)
+
+            if request_key not in self._cache_request_keys:
+                self._cache_request_keys.add(request_key)
+                if len(self._cache_request_keys) > 10:
+                    oldest = next(iter(self._cache_request_keys))
+                    self._cache_request_keys.discard(oldest)
+                    self._etag_by_request.pop(oldest, None)
+                    self._cached_departures_by_request.pop(oldest, None)
+                    _LOGGER.debug(
+                        "Removed old cache for stop %s (key=%s)",
+                        self.stop_id,
+                        oldest,
+                    )
+
+    async def fetch_directional_departure(
+        self, direction: str | None
+    ) -> list[Departure] | None:
         request_key = self._request_variant_key(direction)
+        request_headers = {}
+
         known_etag = self._etag_by_request.get(request_key)
         if known_etag:
             request_headers["If-None-Match"] = known_etag
-            _LOGGER.debug(
-                "Sending conditional request for stop %s (key=%s) with If-None-Match=%s",
-                self.stop_id,
-                request_key,
-                known_etag,
-            )
 
         try:
-            params: dict[str, Any] = {
-                "when": (
-                    datetime.utcnow() + timedelta(minutes=self.walking_time)
-                ).isoformat(),
-                "results": API_MAX_RESULTS,
-                "suburban": str(bool(self.config.get(CONF_TYPE_SUBURBAN))).lower(),
-                "subway": str(bool(self.config.get(CONF_TYPE_SUBWAY))).lower(),
-                "tram": str(bool(self.config.get(CONF_TYPE_TRAM))).lower(),
-                "bus": str(bool(self.config.get(CONF_TYPE_BUS))).lower(),
-                "ferry": str(bool(self.config.get(CONF_TYPE_FERRY))).lower(),
-                "express": str(bool(self.config.get(CONF_TYPE_EXPRESS))).lower(),
-                "regional": str(bool(self.config.get(CONF_TYPE_REGIONAL))).lower(),
-            }
-            params["duration"] = self.duration
-            if direction is not None:
-                params["direction"] = direction
-
+            params = self._build_transport_params(direction)
             async with async_timeout.timeout(240):
                 response = await self.session.get(
                     url=f"{API_ENDPOINT}/stops/{self.stop_id}/departures",
@@ -523,39 +585,16 @@ class TransportSensor(SensorEntity):
                 )
 
                 if response.status == 304:
-                    cached_departures = self._cached_departures_by_request.get(request_key)
-                    if cached_departures is not None:
-                        _LOGGER.debug(
-                            "ETag cache hit for stop %s (key=%s, 304 Not Modified), "
-                            "reusing %s cached departures",
-                            self.stop_id,
-                            request_key,
-                            len(cached_departures),
-                        )
-                        return copy.deepcopy(cached_departures)
-
-                    _LOGGER.warning(
-                        "Received 304 Not Modified for stop %s (key=%s) "
-                        "without cached departures",
-                        self.stop_id,
-                        request_key,
-                    )
+                    cached = self._cached_departures_by_request.get(request_key)
+                    if cached:
+                        return copy.deepcopy(cached)
                     return None
 
                 response.raise_for_status()
                 departures = await response.json()
-        except (
-            aiohttp.ClientError,
-            TimeoutError,
-        ) as ex:
+        except (aiohttp.ClientError, TimeoutError) as ex:
             self._log_departure_fetch_error(ex)
             return None
-
-        _LOGGER.debug(
-            "OK: departures response for stop %s (status=%s)",
-            self.stop_id,
-            response.status,
-        )
 
         departures_data = departures.get("departures") or []
         if not isinstance(departures_data, list):
@@ -565,52 +604,10 @@ class TransportSensor(SensorEntity):
             )
             return None
 
-        if self.excluded_stops is None:
-            excluded_stops = []
-        else:
-            excluded_stops = [
-                stop.strip()
-                for stop in self.excluded_stops.split(",")
-                if stop.strip()
-            ]
+        excluded_stops = self._get_excluded_stops()
+        parsed_departures = self._parse_departures(departures_data, excluded_stops)
 
-        parsed_departures: list[Departure] = []
-        for departure in departures_data:
-            if departure.get("stop", {}).get("id") in excluded_stops:
-                continue
-            try:
-                parsed_departures.append(Departure.from_dict(departure))
-            except (KeyError, TypeError, ValueError) as ex:
-                _LOGGER.debug("Skipping malformed departure for stop %s: %s", self.stop_id, ex)
-
-        response_etag = response.headers.get("ETag")
-        if response_etag:
-            self._etag_by_request[request_key] = response_etag
-            self._cached_departures_by_request[request_key] = copy.deepcopy(
-                parsed_departures
-            )
-            # Track request key and clean up old cache entries to prevent memory leak
-            if request_key not in self._cache_request_keys:
-                self._cache_request_keys.add(request_key)
-                # Keep only the 10 most recent request keys to prevent unbounded memory growth
-                if len(self._cache_request_keys) > 10:
-                    oldest_key = next(iter(self._cache_request_keys))
-                    self._cache_request_keys.discard(oldest_key)
-                    self._etag_by_request.pop(oldest_key, None)
-                    self._cached_departures_by_request.pop(oldest_key, None)
-                    _LOGGER.debug(
-                        "Removed old cache entry for stop %s (key=%s) to prevent memory leak",
-                        self.stop_id,
-                        oldest_key,
-                    )
-            _LOGGER.debug(
-                "Stored ETag for stop %s (key=%s): %s (cached %s departures)",
-                self.stop_id,
-                request_key,
-                response_etag,
-                len(parsed_departures),
-            )
-
+        self._update_cache(request_key, response.headers.get("ETag"), parsed_departures)
         return parsed_departures
 
     async def fetch_departures(self) -> list[Departure] | None:
