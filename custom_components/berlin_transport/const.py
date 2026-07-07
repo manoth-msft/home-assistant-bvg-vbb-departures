@@ -8,8 +8,8 @@ API_MAX_RESULTS = 20
 DEFAULT_DEPARTURES_DURATION = 60
 
 # Feature gates
-EXTRACT_AND_STORE_DIRECTION_NAME = True  # v0.1.4.2+: Extract direction name from API for BVG fallback data collection
-BVG_FALLBACK_ENABLED = False  # v0.1.5+: Enable BVG API fallback mechanism using collected direction names
+EXTRACT_AND_STORE_DIRECTION_NAME = True  # v0.1.4.2+: Extract direction name for BVG fallback
+BVG_FALLBACK_ENABLED = False  # v0.1.5+: Enable BVG fallback using collected direction names
 
 # API Request timeouts (seconds)
 API_REQUEST_TIMEOUT = 240  # 4 minutes
