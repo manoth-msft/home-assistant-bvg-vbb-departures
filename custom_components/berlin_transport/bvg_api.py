@@ -151,14 +151,22 @@ async def fetch_and_parse_bvg_departures(
             transport_type_filters=None,
         )
         
-        if unfiltered_departures and len(unfiltered_departures) != len(filtered_departures):
-            _LOGGER.debug(
-                "[bvg_api] Filtering for stop '%s': %d raw departures → %d after filtering "
-                "(transport_filters=%s)",
-                stop_name,
-                len(unfiltered_departures),
-                len(filtered_departures),
-                transport_type_filters is not None,
-            )
+        if unfiltered_departures:
+            # Build summary by line_type
+            enabled_types = [k for k, v in transport_type_filters.items() if v]
+            type_counts = {}
+            for d in unfiltered_departures:
+                type_counts[d.line_type] = type_counts.get(d.line_type, 0) + 1
+            
+            if len(unfiltered_departures) != len(filtered_departures):
+                _LOGGER.debug(
+                    "[bvg_api] Filtering for stop '%s': %d raw departures → %d after filtering "
+                    "(enabled_types=%s, breakdown_raw=%s)",
+                    stop_name,
+                    len(unfiltered_departures),
+                    len(filtered_departures),
+                    enabled_types,
+                    type_counts,
+                )
     
     return filtered_departures

@@ -220,9 +220,19 @@ def _filter_departures_by_type(
     
     # Apply transport type filter (if configured)
     if transport_type_filters:
-        filtered = [
-            d for d in filtered
-            if transport_type_filters.get(d.line_type, False)
-        ]
+        filtered = []
+        enabled_types = [k for k, v in transport_type_filters.items() if v]
+        
+        for d in departures:
+            is_enabled = transport_type_filters.get(d.line_type, False)
+            if is_enabled:
+                filtered.append(d)
+            else:
+                _LOGGER.debug(
+                    "[filter] Filtered out: %s (line_type=%s, enabled_types=%s)",
+                    d.line_name,
+                    d.line_type,
+                    enabled_types,
+                )
     
     return filtered
