@@ -31,17 +31,15 @@ from .const import (  # pylint: disable=unused-import
     API_MAX_RESULTS,
     API_REQUEST_TIMEOUT,
     API_USER_AGENT,
-    EXTRACT_AND_STORE_DIRECTION_NAME,
-    BVG_FALLBACK_ENABLED,
     DEFAULT_DEPARTURES_DURATION,
     DEFAULT_ICON,
     DEFAULT_WALKING_TIME,
     BACKOFF_BASE,
     BACKOFF_MAX_SECONDS,
+    BVG_FALLBACK_ENABLED,
     CACHE_TTL_SECONDS,
     CONF_DEPARTURES,
     CONF_DEPARTURES_DIRECTION,
-    CONF_DEPARTURES_DIRECTION_NAME,
     CONF_DEPARTURES_EXCLUDED_STOPS,
     CONF_DEPARTURES_STOP_ID,
     CONF_DEPARTURES_WALKING_TIME,
@@ -81,7 +79,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                 vol.Required(CONF_DEPARTURES_NAME): cv.string,
                 vol.Required(CONF_DEPARTURES_STOP_ID): cv.positive_int,
                 vol.Optional(CONF_DEPARTURES_DIRECTION): cv.string,
-                vol.Optional(CONF_DEPARTURES_DIRECTION_NAME): cv.string,  # v0.1.5: set by backfill
                 vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): cv.string,
                 vol.Optional(CONF_DEPARTURES_WALKING_TIME, default=1): cv.positive_int,
                 vol.Optional(CONF_SHOW_API_LINE_COLORS, default=False): cv.boolean,
@@ -149,14 +146,19 @@ class TransportSensor(SensorEntity):
             entry_id: Config entry ID (unused, kept for compatibility)
         """
         self.hass: HomeAssistant = hass
+        # Migration: Remove legacy direction_name field from old configs (v0.1.4.x)
+        if "direction_name" in config:
+            old_direction_name = config.pop("direction_name")
+            _LOGGER.debug(
+                "[migration] Removed legacy direction_name '%s' from config for stop %s",
+                old_direction_name,
+                config.get(CONF_DEPARTURES_STOP_ID),
+            )
         self.config = config
         self.stop_id: int = config[CONF_DEPARTURES_STOP_ID]
         self.excluded_stops: str | None = config.get(CONF_DEPARTURES_EXCLUDED_STOPS)
         self.sensor_name: str | None = config.get(CONF_DEPARTURES_NAME)
         self.direction: str | None = config.get(CONF_DEPARTURES_DIRECTION)
-        self.direction_name: str | None = config.get(
-            CONF_DEPARTURES_DIRECTION_NAME
-        )  # v0.1.5: direction text for BVG filtering
         self.duration: int = DEFAULT_DEPARTURES_DURATION
         self.walking_time: int = config.get(CONF_DEPARTURES_WALKING_TIME) or DEFAULT_WALKING_TIME
         # we add +1 minute anyway to delete the "just gone" transport
@@ -439,22 +441,17 @@ class TransportSensor(SensorEntity):
         # Keep entity available so attributes remain visible during backoff
         self._attr_available = True
 
-        if not BVG_FALLBACK_ENABLED:
-            _LOGGER.debug(
-                "Skipping API request for stop %s due to backoff until %s",
-                self.stop_id,
-                self._next_retry_at,
-            )
-            return
-
         _LOGGER.debug(
             "[backoff] Stop %s in backoff until %s, attempting BVG fallback API",
             self.stop_id,
             self._next_retry_at,
         )
 
-        # Try BVG fallback during backoff
-        departures = await self._fetch_bvg_fallback()
+        # Try BVG fallback during backoff (if enabled)
+        if BVG_FALLBACK_ENABLED:
+            departures = await self._fetch_bvg_fallback()
+        else:
+            departures = None
         if departures is not None:
             self._consecutive_failures = 0
             self.last_update_success = now_utc
@@ -497,21 +494,23 @@ class TransportSensor(SensorEntity):
         # Try BVG fallback IMMEDIATELY on failure (don't wait for next poll cycle)
         if BVG_FALLBACK_ENABLED:
             departures = await self._fetch_bvg_fallback()
-            if departures is not None:
-                self.departures = departures
-                self._data_source = "bvg_api"
-                self.last_update_success = now_utc
-                self._consecutive_failures = 0
-                self._next_retry_at = None
-                self._using_fallback = False
-                _LOGGER.info(
-                    "[fallback] BVG API recovered departures immediately after transport.rest failure "
-                    "for stop %s",
-                    self.stop_id,
-                )
-                return
+        else:
+            departures = None
+        if departures is not None:
+            self.departures = departures
+            self._data_source = "bvg_api"
+            self.last_update_success = now_utc
+            self._consecutive_failures = 0
+            self._next_retry_at = None
+            self._using_fallback = False
+            _LOGGER.info(
+                "[fallback] BVG API recovered departures immediately after transport.rest failure "
+                "for stop %s",
+                self.stop_id,
+            )
+            return
 
-        # BVG fallback failed or disabled: use cached data if available
+        # BVG fallback failed: use cached data if available
         if not self.departures:
             _LOGGER.warning(
                 "[backoff] No cached departures for stop %s after API failure "
@@ -621,15 +620,15 @@ class TransportSensor(SensorEntity):
             "regional": self.config.get(CONF_TYPE_REGIONAL, True),
         }
 
-        # Choose direction filter: use direction_name if available,
-        # otherwise fall back to direction ID (which won't work well with BVG filtering)
+        # Note: BVG API can only filter by endpoint (final destination), but transport.rest
+        # filters by intermediate stops. Since we cannot reliably determine if direction_name
+        # is an endpoint or just an intermediate stop, we skip direction filtering to avoid
+        # incorrectly filtering out valid departures. Only transport type filters are applied.
         direction_filter = None
-        if self.direction_name:
-            direction_filter = self.direction_name
-            _LOGGER.debug(
-                "[fallback] Using direction_name for BVG filtering (direction_name='%s')",
-                self.direction_name,
-            )
+        _LOGGER.debug(
+            "[fallback] Using BVG fallback without direction filtering (only transport types). "
+            "BVG API covers Berlin stops and provides full departure list."
+        )
 
         # Fetch, parse, and filter departures in one call
         parsed_departures = await fetch_and_parse_bvg_departures(
@@ -637,14 +636,15 @@ class TransportSensor(SensorEntity):
             stop_name=self.sensor_name,
             max_journeys=API_MAX_RESULTS,
             timeout_seconds=API_REQUEST_TIMEOUT,
-            direction_filter=direction_filter,
             transport_type_filters=transport_type_filters,
         )
 
         if not parsed_departures:
             _LOGGER.warning(
-                "[fallback] BVG API returned no departures for stop '%s' (stop_id=%s). "
-                "This may indicate the stop is not covered by BVG API (only covers Berlin).",
+                "[fallback] BVG API returned no departures after filtering for stop '%s' (stop_id=%s). "
+                "This may indicate: (1) the stop is not covered by BVG API (only covers Berlin), "
+                "(2) no departures match the configured transport type filters, or "
+                "(3) BVG has no data at this time.",
                 self.sensor_name,
                 self.stop_id,
             )
@@ -653,7 +653,7 @@ class TransportSensor(SensorEntity):
         self._data_source = "bvg_api"  # Mark that we're using fallback source
         _LOGGER.info(
             "[fallback] BVG API successfully provided %s departures for stop '%s' (stop_id=%s) "
-            "(note: limited data - no warnings or vehicle cancellations)",
+            "using fallback (note: limited data - no warnings or vehicle cancellations)",
             len(parsed_departures),
             self.sensor_name,
             self.stop_id,
@@ -661,45 +661,6 @@ class TransportSensor(SensorEntity):
 
         return parsed_departures
 
-    def _backfill_direction_name_from_departures(
-        self, departures: list[Departure]
-    ) -> None:
-        """Extract and store direction name from API response for future BVG fallback.
-        
-        v0.1.4.2+: When a SINGLE direction filter is configured and direction_name
-        not yet stored, extract it from first departure's direction field (contains
-        clear text name from transport.rest API). This collects direction names to
-        support BVG fallback filtering in future versions (v0.1.5+).
-        
-        Only executes if EXTRACT_AND_STORE_DIRECTION_NAME is enabled AND user has
-        configured a SINGLE direction filter (no commas). Multi-direction filters
-        are not supported for direction_name extraction due to BVG API limitations.
-        
-        Args:
-            departures: List of Departure objects from transport.rest response
-        """
-        if not EXTRACT_AND_STORE_DIRECTION_NAME:
-            return
-        
-        # Only extract if user has configured a SINGLE direction filter
-        # (skip if no direction or if multiple directions are configured)
-        if not self.direction or "," in self.direction:
-            return
-        
-        # Only backfill if not already set
-        if self.direction_name:
-            return
-        
-        # Extract from first departure if available
-        if departures and departures[0].direction:
-            self.direction_name = departures[0].direction
-            _LOGGER.debug(
-                "[backfill] Extracted direction_name '%s' for stop %s (direction=%s)",
-                self.direction_name,
-                self.stop_id,
-                self.direction,
-            )
-            # Note: Config persistence requires async_update_entry (implement in v0.1.5)
 
     def _build_transport_params(self, direction: str | None) -> dict[str, Any]:
         """Build API request parameters for transport.rest API.
@@ -925,10 +886,6 @@ class TransportSensor(SensorEntity):
                 if res is None:
                     return None
                 departures += res
-
-        # Step 1b: Backfill direction_name from API response for BVG filtering (v0.1.5)
-        if departures:
-            self._backfill_direction_name_from_departures(departures)
 
         # Step 2: Deduplicate departures
         # Duplicates should only exist for the Ringbahn and filtering for both directions.

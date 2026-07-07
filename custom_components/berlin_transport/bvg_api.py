@@ -101,33 +101,29 @@ async def fetch_bvg_departures(
         return None
 
 
-async def fetch_and_parse_bvg_departures(  # pylint: disable=too-many-arguments
+async def fetch_and_parse_bvg_departures(
     session: aiohttp.ClientSession,
     stop_name: str,
     max_journeys: int = 30,
     timeout_seconds: int = 240,
-    direction_filter: str | None = None,
     transport_type_filters: dict[str, bool] | None = None,
 ) -> list[Departure] | None:
-    """Fetch and parse BVG departures with optional filtering.
+    """Fetch and parse BVG departures with optional transport type filtering.
     
     Combines fetch_bvg_departures() and parse_bvg_departures() into a
-    single call, applying direction and transport type filters to match
-    transport.rest API filtering behavior.
-    
+    single call, applying only transport type filters (no direction filtering,
+    as BVG API filters by final destination, not intermediate stops).
+
     Args:
         session: aiohttp ClientSession
         stop_name: Stop name (not ID)
         max_journeys: Maximum number of journeys to return
         timeout_seconds: Request timeout in seconds
-        direction_filter: Optional direction string (e.g., "Hauptbahnhof").
-                         Only departures matching this direction.
-                         None = no direction filtering.
         transport_type_filters: Optional dict mapping line_type to bool.
                                Keys: 'suburban', 'subway', 'tram', 'bus',
                                'ferry', 'express', 'regional'. If provided,
                                only departures with enabled types returned.
-                               None = no transport type filtering.
+                               None = no transport type filtering (all types).
     
     Returns:
         Filtered list of Departure objects, or None if API request fails.
@@ -142,8 +138,27 @@ async def fetch_and_parse_bvg_departures(  # pylint: disable=too-many-arguments
     if response is None:
         return None
     
-    return parse_bvg_departures(
+    # Parse with transport type filtering only
+    filtered_departures = parse_bvg_departures(
         response=response,
-        direction_filter=direction_filter,
         transport_type_filters=transport_type_filters,
     )
+    
+    # Also parse without filtering to show pre-filter count for logging
+    if transport_type_filters:
+        unfiltered_departures = parse_bvg_departures(
+            response=response,
+            transport_type_filters=None,
+        )
+        
+        if unfiltered_departures and len(unfiltered_departures) != len(filtered_departures):
+            _LOGGER.debug(
+                "[bvg_api] Filtering for stop '%s': %d raw departures → %d after filtering "
+                "(transport_filters=%s)",
+                stop_name,
+                len(unfiltered_departures),
+                len(filtered_departures),
+                transport_type_filters is not None,
+            )
+    
+    return filtered_departures

@@ -6,6 +6,7 @@ Converts BVG departureBoard API responses to Departure objects.
 import logging
 import re
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Any
 
 from .departure import Departure
@@ -49,19 +50,14 @@ def _parse_iso_duration(duration_str: str) -> int:
 
 def parse_bvg_departures(
     response: dict[str, Any] | list[Any],
-    direction_filter: str | None = None,
     transport_type_filters: dict[str, bool] | None = None,
 ) -> list[Departure]:
     """Parse BVG departureBoard API response into Departure objects.
     
-    Optionally filters departures by direction and transport type to match
-    the behavior of the transport.rest API.
+    Optionally filters departures by transport type only.
 
     Args:
         response: JSON response from BVG API
-        direction_filter: Optional direction string (e.g., "Hauptbahnhof").
-                         If provided, only matching departures returned.
-                         None = no direction filtering (return all).
         transport_type_filters: Optional dict mapping line_type to bool.
                                Keys: 'suburban', 'subway', 'tram', 'bus',
                                'ferry', 'express', 'regional'. If provided,
@@ -69,7 +65,7 @@ def parse_bvg_departures(
                                None = no transport type filtering (all).
 
     Returns:
-        List of Departure objects, optionally filtered by direction and transport type.
+        List of Departure objects, optionally filtered by transport type.
     """
     departures: list[Departure] = []
 
@@ -94,11 +90,10 @@ def parse_bvg_departures(
         except (KeyError, TypeError, ValueError) as ex:
             _LOGGER.debug("Skipping malformed BVG element: %s", ex)
 
-    # Apply optional direction and transport type filters
-    if direction_filter or transport_type_filters:
-        departures = _filter_departures_by_type_and_direction(
+    # Apply optional transport type filters
+    if transport_type_filters:
+        departures = _filter_departures_by_type(
             departures,
-            direction_filter=direction_filter,
             transport_type_filters=transport_type_filters,
         )
 
@@ -138,7 +133,11 @@ def _parse_bvg_element(element: dict[str, Any]) -> Departure | None:
 
     try:
         timestamp_str = f"{date_str}T{time_str}"
-        timestamp = datetime.fromisoformat(timestamp_str).replace(tzinfo=timezone.utc)
+        # BVG API returns times without timezone info (local Berlin time)
+        # Parse as naive datetime and localize to Europe/Berlin timezone
+        # This ensures correct time delta calculations in dashboard/automations
+        naive_dt = datetime.fromisoformat(timestamp_str)
+        timestamp = naive_dt.replace(tzinfo=ZoneInfo("Europe/Berlin"))
     except (ValueError, TypeError) as ex:
         _LOGGER.debug(
             "Failed to parse BVG timestamp (%s %s): %s", date_str, time_str, ex
@@ -197,21 +196,20 @@ def _map_bvg_line_type(bvg_line_type: str) -> str:
     return mapping.get(bvg_line_type, "bus")
 
 
-def _filter_departures_by_type_and_direction(
+def _filter_departures_by_type(
     departures: list[Departure],
-    direction_filter: str | None = None,
     transport_type_filters: dict[str, bool] | None = None,
 ) -> list[Departure]:
-    """Filter departures by direction and transport type (CLIENT-SIDE).
+    """Filter departures by transport type (CLIENT-SIDE).
     
-    This function implements the filtering that the transport.rest API does
-    server-side, but must be done client-side for the BVG API which doesn't
-    support filtering parameters.
+    This function implements the transport type filtering that the transport.rest API does
+    server-side, but must be done client-side for the BVG API.
+    
+    Direction filtering is NOT applied because transport.rest filters by intermediate stops
+    while BVG can only filter by final destinations—these are not equivalent semantics.
     
     Args:
         departures: List of parsed Departure objects
-        direction_filter: Direction string to match (e.g., "Hauptbahnhof").
-                         If provided, only departures matching this direction are kept.
         transport_type_filters: Dict mapping line_type to bool.
                                If provided, only departures with enabled types are kept.
     
@@ -219,13 +217,6 @@ def _filter_departures_by_type_and_direction(
         Filtered list of Departure objects.
     """
     filtered = departures
-    
-    # Apply direction filter (if configured)
-    if direction_filter:
-        filtered = [
-            d for d in filtered
-            if d.direction and direction_filter.lower() in d.direction.lower()
-        ]
     
     # Apply transport type filter (if configured)
     if transport_type_filters:

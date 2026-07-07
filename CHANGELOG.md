@@ -6,7 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Set a proper `User-Agent` header for all API requests, dynamically built from `manifest.json` (version + documentation URL). Previously, transport.rest requests used the generic Home Assistant User-Agent; BVG API requests used a static placeholder string.
-- **Enabled BVG fallback API** when transport.rest experiences outages. The BVG API now serves as an active fallback during backoff periods, using collected direction names for filtering (single-direction filters only). BVG API integration based on the work by [@select](https://github.com/select).
+- **Enabled BVG fallback API** when transport.rest experiences outages. BVG now serves as an active fallback during transport.rest failures, applying only transport type filters (bus, subway, etc.). Direction filtering is not possible due to limitations of the API used. BVG API integration based on the work by [@select](https://github.com/select).
+- Improved fallback logging to show the impact of transport type filters (raw departures vs. after filtering).
 
 ## [0.1.4.2] - 2026-07-07
 

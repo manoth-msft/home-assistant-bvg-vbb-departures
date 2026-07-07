@@ -19,16 +19,15 @@ API_USER_AGENT = f"home-assistant-bvg-vbb-departures/{_VERSION} ({_DOCS_URL})"
 API_MAX_RESULTS = 20
 DEFAULT_DEPARTURES_DURATION = 60
 
-# Feature gates
-EXTRACT_AND_STORE_DIRECTION_NAME = True  # v0.1.4.2+: Extract direction name for BVG fallback
-BVG_FALLBACK_ENABLED = True  # v0.1.5+: Enable BVG fallback using collected direction names
-
 # API Request timeouts (seconds)
 API_REQUEST_TIMEOUT = 240  # 4 minutes
 
 # Backoff configuration
 BACKOFF_BASE = 2  # Exponential backoff base (2^n)
 BACKOFF_MAX_SECONDS = 900  # 15 minutes maximum backoff
+
+# Feature gates
+BVG_FALLBACK_ENABLED = True  # Enable BVG API as fallback when transport.rest fails
 
 # Cache management
 CACHE_TTL_SECONDS = 7200  # 2 hours: Time-to-live for cached request variants
@@ -44,7 +43,6 @@ CONF_SELECTED_STOP = "selected_stop"
 CONF_DEPARTURES_EXCLUDED_STOPS = "excluded_stops"
 CONF_DEPARTURES_WALKING_TIME = "walking_time"
 CONF_DEPARTURES_DIRECTION = "direction"
-CONF_DEPARTURES_DIRECTION_NAME = "direction_name"  # v0.1.5: Direction name for BVG
 CONF_DEPARTURES_DURATION = "duration"
 CONF_EXCLUDE_RINGBAHN_CLOCKWISE = "exclude_ringbahn_clockwise"
 CONF_EXCLUDE_RINGBAHN_COUNTERCLOCKWISE = "exclude_ringbahn_counterclockwise"

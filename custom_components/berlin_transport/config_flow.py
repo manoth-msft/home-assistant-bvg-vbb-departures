@@ -23,7 +23,6 @@ from .const import (
     CONF_DEPARTURES_NAME,
     CONF_SELECTED_STOP,
     CONF_DEPARTURES_DIRECTION,
-    CONF_DEPARTURES_DIRECTION_NAME,
     CONF_DEPARTURES_EXCLUDED_STOPS,
     CONF_DEPARTURES_WALKING_TIME,
     CONF_SHOW_API_LINE_COLORS,
@@ -43,7 +42,6 @@ CONF_FOUND_STOPS = "found_stops"
 DATA_SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_DEPARTURES_DIRECTION): cv.string,
-        vol.Optional(CONF_DEPARTURES_DIRECTION_NAME): cv.string,  # v0.1.5: set by backfill
         vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): cv.string,
         vol.Optional(CONF_DEPARTURES_WALKING_TIME, default=1): cv.positive_int,
         vol.Optional(CONF_SHOW_API_LINE_COLORS, default=False): cv.boolean,
