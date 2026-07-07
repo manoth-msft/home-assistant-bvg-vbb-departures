@@ -476,6 +476,7 @@ class TransportSensor(SensorEntity):
         - 3rd failure: 480s (8 min)
         - ...up to max 900s (15 min)
         
+        Attempts BVG fallback API immediately on failure if enabled.
         Sets entity to unavailable only if no cached data exists (otherwise remains
         available with stale data). Activates fallback mode to allow BVG API retries.
         
@@ -493,6 +494,25 @@ class TransportSensor(SensorEntity):
         # The state value ("N/A" vs departure time) indicates whether data is available
         self._attr_available = True
 
+        # Try BVG fallback IMMEDIATELY on failure (don't wait for next poll cycle)
+        if BVG_FALLBACK_ENABLED:
+            departures = await self._fetch_bvg_fallback()
+            if departures is not None:
+                self.departures = departures
+                self._data_source = "bvg_api"
+                self.last_update_success = now_utc
+                self._consecutive_failures = 0
+                self._next_retry_at = None
+                self._using_fallback = False
+                self._invalidate_attributes_cache()
+                _LOGGER.info(
+                    "[fallback] BVG API recovered departures immediately after transport.rest failure "
+                    "for stop %s",
+                    self.stop_id,
+                )
+                return
+
+        # BVG fallback failed or disabled: use cached data if available
         if not self.departures:
             _LOGGER.warning(
                 "[backoff] No cached departures for stop %s after API failure "
