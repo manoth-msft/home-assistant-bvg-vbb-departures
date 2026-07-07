@@ -504,7 +504,6 @@ class TransportSensor(SensorEntity):
                 self._consecutive_failures = 0
                 self._next_retry_at = None
                 self._using_fallback = False
-                self._invalidate_attributes_cache()
                 _LOGGER.info(
                     "[fallback] BVG API recovered departures immediately after transport.rest failure "
                     "for stop %s",
