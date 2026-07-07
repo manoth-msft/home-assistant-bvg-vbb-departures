@@ -2,28 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.4.2] - 2026-07-06
-### Fixed
-- Fixed race condition in async state updates.
-- Improved ETag cache cleanup with time-based TTL to prevent memory bloat.
-- Optimized departure deduplication performance with hash caching (reduces CPU cycles).
-- Added proper resource cleanup when sensors are removed.
-- Refactored magic numbers into named constants for maintainability.
-- Standardized logging format across all modules with consistent prefixes.
-- Added comprehensive docstrings and type hints following modern Python 3.10+ syntax.
-- Added UTC timezone validation to prevent datetime comparison bugs.
-- Optimized state attribute regeneration with caching (reduces CPU cycles and I/O).
-- Added missing debug logging for successful API responses (200 OK and 304 Not Modified).
-- Improved sensor availability handling: entity stays available even when no departures are displayed, ensuring debug attributes (health_status, last_updated, health_details) remain visible during API outages.
-
-## [0.1.4.1] - 2026-07-06
-### ⚠️ Breaking Change
-If you updated to 0.1.4.0 and adjusted your dashboards to use the `_2` suffixed sensors (e.g., `sensor.s_wannsee_bhf_berlin_2`), you will need to update them back to the original sensor names (e.g., `sensor.s_wannsee_bhf_berlin`) after updating to 0.1.4.1. The fix restores backward compatibility with 0.1.3.x, which means sensor entity IDs return to their original names.
+## [0.1.4.2] - 2026-07-07
 
 ### Known Limitations (API Availability)
 Due to the transport.rest API's unstable availability and rate limiting, the following limitations apply:
 - Creating new sensors may fail if the config UI cannot load stops from the API. If this happens, wait a few minutes and try again.
 - Lovelace cards will not display until at least one successful sensor update has completed. This is expected behavior as the integration requires initial data before rendering UI elements.
+
+### Fixed
+- Optimized departure deduplication performance with hash caching (reduces CPU cycles).
+- Optimized state attribute regeneration with caching (reduces CPU cycles and I/O).
+- Improved ETag cache cleanup with time-based TTL to prevent memory bloat.
+- Fixed race condition in async state updates.
+- Added proper resource cleanup when sensors are removed.
+- Refactored magic numbers into named constants for maintainability.
+- Improved logging with comprehensive debug information (200 OK, 304 Not Modified) and standardized formatting across all modules.
+- Added comprehensive docstrings and type hints following modern Python 3.10+ syntax.
+- Added UTC timezone validation to prevent datetime comparison bugs.
+- Improved sensor availability handling: entity stays available even when no departures are displayed, ensuring debug attributes (health_status, last_updated, health_details) remain visible during API outages.
+
+### Added
+- Direction name collection from transport.rest API for sensors with single-direction filters (v0.1.5 preparation for improved BVG fallback filtering).
+
+
+## [0.1.4.1] - 2026-07-06
+### ⚠️ Breaking Change
+If you updated to 0.1.4.0 and adjusted your dashboards to use the `_2` suffixed sensors (e.g., `sensor.s_wannsee_bhf_berlin_2`), you will need to update them back to the original sensor names (e.g., `sensor.s_wannsee_bhf_berlin`) after updating to 0.1.4.1. The fix restores backward compatibility with 0.1.3.x, which means sensor entity IDs return to their original names.
 
 ### Fixed
 - **CRITICAL:** Fixed sensor recreation issue when updating from 0.1.3.x to 0.1.4.x. Sensor entity IDs are now preserved during updates (no more `_2` suffix)

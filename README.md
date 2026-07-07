@@ -2,23 +2,23 @@
 
 > ℹ️ [Hier klicken](./docs/liesmich.md) für eine deutsche Beschreibung.
 
-This integration brings **live public transport data** from Berlin and Brandenburg directly into your Home Assistant dashboard. It fetches real-time departures from BVG and VBB stops — including line numbers, destinations, departure times, and delays.
+**Live public transport data** from Berlin and Brandenburg in your Home Assistant dashboard. Real-time departures, line numbers, destinations, delays — updated every 120 seconds.
 
-Whether you're commuting, picking up your kids, or just wondering when the next Ringbahn arrives, this integration shows upcoming departures from your selected stops in a clean, readable format.
+Whether you're commuting, picking up your kids, or just wondering when the next Ringbahn arrives, this integration shows upcoming departures in a clean, readable format.
 
 ![Example of a real-time public transport display at S+U Gesundbrunnen Bhf  station in Berlin, similar to how departures appear in the Home Assistant dashboard.](./docs/screenshots/timetable_card2s.jpg)![Another example](./docs/screenshots/timetable_card3s.jpg)![Another example](./docs/screenshots/timetable_card1s.jpg)
 
 ## ✨ Features
-- **Real-time departures** from BVG & VBB stops, including line numbers, destinations, delays, and platforms, updated every 120 seconds  
-- **Dashboard card integration** for a clean, user-friendly display of upcoming departures
-- **Advanced filtering options**: direction, excluded stops, transport types (bus, tram, ferry, etc.)  
-- **Customization**: walking time offset, official VBB line colors, Ringbahn ⟳/⟲ toggle  
-- **Localization support** with German and English translations
+- **Real-time departures** from Berlin and Brandenburg transport stops with line numbers, destinations, delays, and platforms
+- **Dashboard card integration** for clean, user-friendly display
+- **Smart filtering**: direction, excluded stops, transport types (bus, tram, ferry, etc.)
+- **Customization**: walking time offset, official VBB colors, Ringbahn ⟳/⟲ toggle
+- **Languages**: German and English support
 
 ## 💿 Installation
 
 This integration consists of two components:  
-1. **Integration** – fetches real-time departure data from BVG/VBB  
+1. **Integration** – fetches real-time departure data from Berlin and Brandenburg transport stops  
 1. **Dashboard card** – displays the data in a clean, user-friendly format  
 
 You need both components. The recommended way to install is via [HACS](https://hacs.xyz/) for easy updates and seamless integration. The setup takes less than 10 minutes.
@@ -45,146 +45,41 @@ Click **Add**, then reload the HACS page (hit `F5`) to make sure both repositori
 
 ### 3️⃣ Add and configure integration
 
-1. Under `Settings → Devices & services`, select **Add Integration**, search for **bvg**, and choose **BVG/VBB Departures**.  
-1. Enter the name of the stop you want to monitor. Partial names are supported. Click **OK**, then pick your station from the list of matches and confirm with **OK**.  
-1. (Optional) Configure additional parameters such as direction filters, excluded stops, walking time, Ringbahn options, and more.  
-   → See [Additional configuration details](#integration
-) for a full overview.  
-1. Finally, click **OK** and **Done**. The entity will be created and receive its first update within 1–2 minutes.
+1. Go to **Settings → Devices & services** → **Add Integration**
+2. Search for **bvg** and select **BVG/VBB Departures**
+3. Enter your stop name (partial names work)
+4. Pick your station from the suggestions
+5. (Optional) Configure filters, walking time, transport types, etc. → See [Configuration Guide](./docs/configuration.md)
+6. Done! First update arrives in 1–2 minutes
 
 ### 4️⃣ Add card to dashboard
 
-1. Open the dashboard of your choice and add a new card.  
-1. Under **Custom cards**, select the **BVG/VBB departures card**.  
-1. Choose the entity you just created and adjust the configuration if needed.  
-   → Configuration options are described [here](#card).  
-1. Save the card. Within a few minutes it will update and display the real‑time BVG/VBB departures.  
+1. Open any dashboard and add a new card
+2. Choose **Custom cards** → **BVG/VBB departures card**
+3. Select your entity
+4. Adjust display options if needed (delays, relative/absolute time, walking time, etc.)
+5. Save!
 
 Done 🎉
 
-## ⚙️ Additional configuration details
-### 🔧 Integration
+## 📖 Documentation
 
-- **Direction**: Use `stop_id` to filter departures by direction. Provide the `stop_id` of a stop along the intended line or its final destination. Multiple values can be specified using a comma‑separated list. See [below](#how-do-i-find-my-stop_id) for how to find the `stop_id`.  
-- **Exclude stops**: List of `stop_id` values to exclude nearby stops. Multiple values can be specified using a comma‑separated list.  
-- **Duration**: Temporarily fixed to 60 minutes and currently not configurable.  
-- **Walking time**: Enter the time needed to walk to the stop. This prevents unreachable departures from being shown.  
-- **Enable official VBB line colors**: Optionally enable official VBB line colors. By default, predefined colors are used.  
-- **Hide Ringbahn ⟳/⟲**: Optionally hide clockwise or counter‑clockwise Ringbahn services.  
-- **Remove (Berlin) suffix**: Automatically strip the "(Berlin)" suffix from station names.  
-- **Transport options**: Choose which transport types (e.g., bus, ferry) to show or hide.
+For detailed information, see our guides:
 
-
-#### 📝 Example configuration
-
-Suppose you want to monitor S‑Bahn departures from **S Treptower Park**.  
-You only want to see trains heading to **S+U Neukölln** and exclude departures from the nearby bus stop.  
-Since you need about 10 minutes to reach the station, unreachable departures should be hidden.  
-You also prefer not to see the Ringbahn ⟲ (which technically also goes to S+U Neukölln) and like the clean look without the **(Berlin)** suffix appended to station names.
-
-Then your additional configuration would look like this:
-
-- **Direction**: `900078201` (S+U Neukölln)  
-- **Excluded stops**: `900190702` (bus stop at S Treptower Park)  
-- **Walking time**: `10` minutes  
-- **Hide Ringbahn ⟲**: enabled  
-- **Remove (Berlin) suffix**: enabled  
-- **Transport options**: all disabled except **Suburban**
-
-### 🗂️ Card
-
-- **Show cancelled departures**: Decide whether cancelled departures should be displayed.  
-  If enabled, they appear struck through in the list; otherwise, they are hidden.  
-
-- **Show delay**: Choose whether reported delays are shown.  
-  If enabled, the delay is displayed next to the departure time.  
-
-- **Show absolute time of departures**: Display the exact scheduled departure time.  
-
-- **Show relative time of departures**: Display the countdown (e.g., “in 5 minutes”) until departure.  
-
-- **Subtract walking time from relative time of departures**: Subtract your walking time to the stop from the relative countdown.  
-  For example, if the bus leaves in 15 minutes and you configured 10 minutes walking time, enabling this option will show that you need to leave the house in 5 minutes to catch the bus.
+- **[Configuration Guide](./docs/configuration.md)** – All settings explained with examples and scenarios
+- **[FAQ](./docs/faq.md)** – Common questions and answers
+- **[Troubleshooting](./docs/troubleshooting.md)** – Fixes for common issues
 
 ## 🤝 Credits
 
 This project is a fork of the original Berlin Transport integration by [vas3k](https://github.com/vas3k/home-assistant-berlin-transport), with additional filtering, customization options, and ongoing independent maintenance.
-
-## ❓ FAQ
-### Q: How do I find my stop_id?
-
-The primary stop you select will be resolved automatically by the integration.  
-You only need to look up `stop_id` values if you want to use advanced configuration options such as **Direction** or **Excluded stops**.
-
-To find a `stop_id`, you can query the VBB API. Open the link below in a new window and replace `alexanderplatz` with the name of your stop. Partial matches are supported.
-
-**https://v6.vbb.transport.rest/locations?results=1&query=alexanderplatz**
-
-The API will return a response similar to:
-
-```json
-[
-  {
-    "type": "stop",
-    "id": "900100003",
-    "name": "S+U Alexanderplatz Bhf (Berlin)",
-    "location": {
-      "type": "location",
-      "id": "900100003",
-      "latitude": 52.521508,
-      "longitude": 13.411267
-    },
-    "products": {
-      "suburban": true,
-      "subway": true,
-      "tram": true,
-      "bus": true,
-      "ferry": false,
-      "express": false,
-      "regional": true
-    },
-    "stationDHID": "de:11000:900100003"
-  }
-]
-```
-The first `"id"` field contains the required `stop_id` — here: **900100003**.
-
----
-
-### Q: What data source does this sensor use?
-A: The sensor uses the VBB Public API to fetch all transport information.  
-- API docs: [https://v6.vbb.transport.rest/api.html](https://v6.vbb.transport.rest/api.html)  
-- Rate limit: 100 requests per minute  
-- Data format: [HAFAS](https://github.com/public-transport/hafas-client)
-
----
-
-### Q: How often does the integration update?
-A: The integration updates every 120 seconds. It makes a separate request for each stop. This is usually sufficient, but adding dozens of stops is not recommended to avoid hitting the rate limit.
-
----
-
-### Q: What happens if the VBB API returns errors?
-A: If the API fails (for example with 502/503 or timeout errors), the integration keeps showing the last successful departures instead of going blank. The sensor marks these values as stale (`data_is_stale: true`) and reports the current state via `health_status` (for example `backoff` or `stale`). It then retries automatically with adaptive backoff.
-
----
-
-### Q: What entities are created by the integration?
-A: For each stop, the integration creates one entity. It stores the upcoming departures in `attributes.departures`. The entity state itself is mainly for human-readable display of the next departure.
-
----
-
-### Q: How can I change configuration options later?
-A: Go to **Settings > Devices & Services**, select the **BVG/VBB Departures** integration, and click on the three dots next to the entity you want to update. Delete the entry.  
-Then choose **Add service** and re‑add the stop with the adjusted configuration.  
-The new entity will receive the same ID as the previous one, so your dashboards do not need to be updated.
 
 ## 🤝 Contributions, Bugs & Feature Requests
 
 This project is a small side project, so while I cannot guarantee full support or help with dashboard configuration, I truly appreciate your understanding — and even more your contributions!
 
 - **Contributions**: Pull requests are always welcome. Feel free to [open a PR](https://github.com/manoth-msft/home-assistant-bvg-vbb-departures/pulls) for review.
-  If you’re unsure about an idea, simply [open an issue](https://github.com/manoth-msft/home-assistant-bvg-vbb-departures/issues) and ask for advice.
+  If you're unsure about an idea, simply [open an issue](https://github.com/manoth-msft/home-assistant-bvg-vbb-departures/issues) and ask for advice.
 
 - **Bug reports**: If you discover a bug, please [open an issue](https://github.com/manoth-msft/home-assistant-bvg-vbb-departures/issues) and describe the exact steps to reproduce it. Screenshots, logs, and details are very helpful to track down the problem.
 

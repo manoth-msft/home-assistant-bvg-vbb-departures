@@ -30,6 +30,7 @@ from .const import (  # pylint: disable=unused-import
     API_ENDPOINT,
     API_MAX_RESULTS,
     API_REQUEST_TIMEOUT,
+    EXTRACT_AND_STORE_DIRECTION_NAME,
     BVG_FALLBACK_ENABLED,
     DEFAULT_DEPARTURES_DURATION,
     DEFAULT_ICON,
@@ -643,17 +644,26 @@ class TransportSensor(SensorEntity):
     def _backfill_direction_name_from_departures(
         self, departures: list[Departure]
     ) -> None:
-        """Extract and store direction name from API response for BVG fallback.
+        """Extract and store direction name from API response for future BVG fallback.
         
-        v0.1.5 feature: When BVG fallback enabled and direction_name not yet
-        stored, extract from first departure. transport.rest API includes clear
-        direction name in each departure's direction field, enabling BVG fallback
-        filtering to work correctly. Only executes if BVG_FALLBACK_ENABLED=True.
+        v0.1.4.2+: When a SINGLE direction filter is configured and direction_name
+        not yet stored, extract it from first departure's direction field (contains
+        clear text name from transport.rest API). This collects direction names to
+        support BVG fallback filtering in future versions (v0.1.5+).
+        
+        Only executes if EXTRACT_AND_STORE_DIRECTION_NAME is enabled AND user has
+        configured a SINGLE direction filter (no commas). Multi-direction filters
+        are not supported for direction_name extraction due to BVG API limitations.
         
         Args:
             departures: List of Departure objects from transport.rest response
         """
-        if not BVG_FALLBACK_ENABLED:
+        if not EXTRACT_AND_STORE_DIRECTION_NAME:
+            return
+        
+        # Only extract if user has configured a SINGLE direction filter
+        # (skip if no direction or if multiple directions are configured)
+        if not self.direction or "," in self.direction:
             return
         
         # Only backfill if not already set
@@ -664,9 +674,10 @@ class TransportSensor(SensorEntity):
         if departures and departures[0].direction:
             self.direction_name = departures[0].direction
             _LOGGER.debug(
-                "[backfill] Extracted direction_name '%s' for stop %s from API response",
+                "[backfill] Extracted direction_name '%s' for stop %s (direction=%s)",
                 self.direction_name,
                 self.stop_id,
+                self.direction,
             )
             # Note: Config persistence requires async_update_entry (implement in v0.1.5)
 
