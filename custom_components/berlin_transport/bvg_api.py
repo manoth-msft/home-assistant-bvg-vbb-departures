@@ -154,7 +154,7 @@ async def fetch_and_parse_bvg_departures(
         if unfiltered_departures:
             # Build summary by line_type
             enabled_types = [k for k, v in transport_type_filters.items() if v]
-            type_counts = {}
+            type_counts: dict[str, int] = {}
             for d in unfiltered_departures:
                 type_counts[d.line_type] = type_counts.get(d.line_type, 0) + 1
             
