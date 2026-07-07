@@ -172,7 +172,7 @@ def _parse_bvg_element(element: dict[str, Any]) -> Departure | None:
 def _map_bvg_line_type(bvg_line_type: str) -> str:
     """Map BVG line type name to standard line type.
 
-    BVG uses: bus, tram, subway, suburban, regional, regionalExp,
+    BVG uses: bus, tram, subway, suburban, sbahn, regional, regionalExp,
               longDistance, express
 
     Our types: bus, tram, subway, suburban, regional, express, ice
@@ -187,6 +187,7 @@ def _map_bvg_line_type(bvg_line_type: str) -> str:
         "bus": "bus",
         "tram": "tram",
         "subway": "subway",
+        "sbahn": "suburban",  # S-Bahn = suburban
         "suburban": "suburban",
         "regional": "regional",
         "regionalExp": "regional",
