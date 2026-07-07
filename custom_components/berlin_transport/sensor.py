@@ -624,7 +624,6 @@ class TransportSensor(SensorEntity):
         # filters by intermediate stops. Since we cannot reliably determine if direction_name
         # is an endpoint or just an intermediate stop, we skip direction filtering to avoid
         # incorrectly filtering out valid departures. Only transport type filters are applied.
-        direction_filter = None
         _LOGGER.debug(
             "[fallback] Using BVG fallback without direction filtering (only transport types). "
             "BVG API covers Berlin stops and provides full departure list."
@@ -641,10 +640,10 @@ class TransportSensor(SensorEntity):
 
         if not parsed_departures:
             _LOGGER.warning(
-                "[fallback] BVG API returned no departures after filtering for stop '%s' (stop_id=%s). "
-                "This may indicate: (1) the stop is not covered by BVG API (only covers Berlin), "
-                "(2) no departures match the configured transport type filters, or "
-                "(3) BVG has no data at this time.",
+                "[fallback] BVG API returned no departures after filtering for stop '%s' "
+                "(stop_id=%s). This may indicate: (1) the stop is not covered by BVG API "
+                "(only covers Berlin), (2) no departures match the configured transport type "
+                "filters, or (3) BVG has no data at this time.",
                 self.sensor_name,
                 self.stop_id,
             )

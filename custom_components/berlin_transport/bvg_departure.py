@@ -5,7 +5,7 @@ Converts BVG departureBoard API responses to Departure objects.
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import Any
 
@@ -134,10 +134,11 @@ def _parse_bvg_element(element: dict[str, Any]) -> Departure | None:
     try:
         timestamp_str = f"{date_str}T{time_str}"
         # BVG API returns times without timezone info (local Berlin time)
-        # Parse as naive datetime and localize to Europe/Berlin timezone
+        # Parse and localize to Europe/Berlin timezone
         # This ensures correct time delta calculations in dashboard/automations
-        naive_dt = datetime.fromisoformat(timestamp_str)
-        timestamp = naive_dt.replace(tzinfo=ZoneInfo("Europe/Berlin"))
+        timestamp = datetime.fromisoformat(timestamp_str).replace(
+            tzinfo=ZoneInfo("Europe/Berlin")
+        )
     except (ValueError, TypeError) as ex:
         _LOGGER.debug(
             "Failed to parse BVG timestamp (%s %s): %s", date_str, time_str, ex
@@ -146,7 +147,6 @@ def _parse_bvg_element(element: dict[str, Any]) -> Departure | None:
 
     # Map line type and get visuals
     line_type = _map_bvg_line_type(line_type_name)
-    line_visuals = TRANSPORT_TYPE_VISUALS.get(line_type) or {}
 
     # Generate trip ID and parse delay
     trip_id = f"bvg_{line_name}_{timestamp.isoformat()}_{direction}"
@@ -159,9 +159,9 @@ def _parse_bvg_element(element: dict[str, Any]) -> Departure | None:
         timestamp=timestamp,
         time=timestamp.strftime("%H:%M"),
         direction=direction,
-        icon=line_visuals.get("icon") or DEFAULT_ICON,
+        icon=(TRANSPORT_TYPE_VISUALS.get(line_type) or {}).get("icon") or DEFAULT_ICON,
         bg_color=None,
-        fallback_color=line_visuals.get("color"),
+        fallback_color=(TRANSPORT_TYPE_VISUALS.get(line_type) or {}).get("color"),
         location=None,
         cancelled=False,
         delay=delay_seconds if delay_seconds else None,
