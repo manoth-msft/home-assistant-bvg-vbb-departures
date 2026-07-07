@@ -30,6 +30,7 @@ from .const import (  # pylint: disable=unused-import
     API_ENDPOINT,
     API_MAX_RESULTS,
     API_REQUEST_TIMEOUT,
+    API_USER_AGENT,
     EXTRACT_AND_STORE_DIRECTION_NAME,
     BVG_FALLBACK_ENABLED,
     DEFAULT_DEPARTURES_DURATION,
