@@ -100,7 +100,7 @@ async def fetch_bvg_departures(
         return None
 
 
-async def fetch_and_parse_bvg_departures(
+async def fetch_and_parse_bvg_departures(  # pylint: disable=too-many-arguments
     session: aiohttp.ClientSession,
     stop_name: str,
     max_journeys: int = 30,
@@ -111,8 +111,8 @@ async def fetch_and_parse_bvg_departures(
     """Fetch and parse BVG departures with optional filtering.
     
     Combines fetch_bvg_departures() and parse_bvg_departures() into a single
-    call, applying direction and transport type filters to match the behavior
-    of transport.rest API filtering.
+    call, applying direction and transport type filters to match transport.rest
+    API filtering behavior.
     
     Args:
         session: aiohttp ClientSession

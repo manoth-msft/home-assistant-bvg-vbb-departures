@@ -13,6 +13,8 @@ All notable changes to this project will be documented in this file.
 - Added comprehensive docstrings and type hints following modern Python 3.10+ syntax.
 - Added UTC timezone validation to prevent datetime comparison bugs.
 - Optimized state attribute regeneration with caching (reduces CPU cycles and I/O).
+- Added missing debug logging for successful API responses (200 OK and 304 Not Modified).
+- Improved sensor availability handling: entity stays available even when no departures are displayed, ensuring debug attributes (health_status, last_updated, health_details) remain visible during API outages.
 
 ## [0.1.4.1] - 2026-07-06
 ### ⚠️ Breaking Change

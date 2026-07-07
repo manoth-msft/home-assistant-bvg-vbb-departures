@@ -122,8 +122,8 @@ async def async_setup_entry(
 class TransportSensor(SensorEntity):
     """Home Assistant sensor entity for displaying VBB/BVG departures.
     
-    This sensor fetches real-time departure information from the VBB transport.rest
-    API with automatic fallback to the BVG API during connectivity issues. It supports:
+    This sensor fetches real-time departure information from VBB transport.rest API
+    with automatic fallback to BVG API during connectivity issues. It supports:
     - Multiple directions separated by commas
     - Automatic deduplication of Ringbahn departures
     - ETag-based HTTP caching to reduce API calls
@@ -425,8 +425,14 @@ class TransportSensor(SensorEntity):
                 self._handle_successful_fetch(departures, now_utc)
 
     async def _handle_backoff_period(self, now_utc: datetime) -> None:
-        """Handle requests during backoff period."""
-        self._attr_available = bool(self.departures)
+        """Handle requests during backoff period.
+        
+        When in backoff, the sensor uses cached data if available. The entity
+        is kept available to preserve attributes (health_status, last_updated, etc)
+        which are important for debugging API issues.
+        """
+        # Keep entity available so attributes remain visible during backoff
+        self._attr_available = True
 
         if not BVG_FALLBACK_ENABLED:
             _LOGGER.debug(
@@ -478,7 +484,9 @@ class TransportSensor(SensorEntity):
         )
         self._next_retry_at = now_utc + timedelta(seconds=backoff_seconds)
         self._using_fallback = True
-        self._attr_available = bool(self.departures)
+        # Keep entity available so attributes (health_status, last_updated, etc) remain visible
+        # The state value ("N/A" vs departure time) indicates whether data is available
+        self._attr_available = True
 
         if not self.departures:
             _LOGGER.warning(
@@ -657,7 +665,7 @@ class TransportSensor(SensorEntity):
                 self.direction_name,
                 self.stop_id,
             )
-            # TODO: Persist to config entry (requires async call to update_entry)
+            # Note: Config persistence requires async_update_entry (implement in v0.1.5)
 
     def _build_transport_params(self, direction: str | None) -> dict[str, Any]:
         """Build API request parameters for transport.rest API.
@@ -808,6 +816,12 @@ class TransportSensor(SensorEntity):
                 if response.status == 304:
                     cached = self._cached_departures_by_request.get(request_key)
                     if cached:
+                        _LOGGER.debug(
+                            "[transport.rest] 304 Not Modified (stop_id=%s, direction=%s, cached=%d)",
+                            self.stop_id,
+                            direction or "all",
+                            len(cached),
+                        )
                         return copy.deepcopy(cached)
                     return None
 
@@ -829,6 +843,15 @@ class TransportSensor(SensorEntity):
         parsed_departures = self._parse_departures(departures_data, excluded_stops)
 
         self._update_cache(request_key, response.headers.get("ETag"), parsed_departures)
+        
+        # Log successful fetch
+        _LOGGER.debug(
+            "[transport.rest] 200 OK (stop_id=%s, direction=%s, departures=%d)",
+            self.stop_id,
+            direction or "all",
+            len(parsed_departures),
+        )
+        
         return parsed_departures
 
     async def fetch_departures(self) -> list[Departure] | None:

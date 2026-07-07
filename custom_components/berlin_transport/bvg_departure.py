@@ -60,7 +60,7 @@ def parse_bvg_departures(
     Args:
         response: JSON response from BVG API
         direction_filter: Optional direction string (e.g., "Hauptbahnhof").
-                         If provided, only departures matching this direction are returned.
+                         If provided, only matching departures are returned.
                          None means no direction filtering (return all).
         transport_type_filters: Optional dict mapping line_type to bool.
                                Keys: 'suburban', 'subway', 'tram', 'bus', 'ferry', 'express', 'regional'
