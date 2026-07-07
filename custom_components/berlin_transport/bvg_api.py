@@ -100,7 +100,7 @@ async def fetch_bvg_departures(
         return None
 
 
-async def fetch_and_parse_bvg_departures(  # pylint: disable=too-many-arguments
+async def fetch_and_parse_bvg_departures(  # pylint: disable=too-many-positional-arguments
     session: aiohttp.ClientSession,
     stop_name: str,
     max_journeys: int = 30,
@@ -110,9 +110,9 @@ async def fetch_and_parse_bvg_departures(  # pylint: disable=too-many-arguments
 ) -> list[Departure] | None:
     """Fetch and parse BVG departures with optional filtering.
     
-    Combines fetch_bvg_departures() and parse_bvg_departures() into a single
-    call, applying direction and transport type filters to match transport.rest
-    API filtering behavior.
+    Combines fetch_bvg_departures() and parse_bvg_departures() into a
+    single call, applying direction and transport type filters to match
+    transport.rest API filtering behavior.
     
     Args:
         session: aiohttp ClientSession
@@ -120,12 +120,13 @@ async def fetch_and_parse_bvg_departures(  # pylint: disable=too-many-arguments
         max_journeys: Maximum number of journeys to return
         timeout_seconds: Request timeout in seconds
         direction_filter: Optional direction string (e.g., "Hauptbahnhof").
-                         Only departures matching this direction are returned.
-                         None means no direction filtering.
+                         Only departures matching this direction.
+                         None = no direction filtering.
         transport_type_filters: Optional dict mapping line_type to bool.
-                               Keys: 'suburban', 'subway', 'tram', 'bus', 'ferry', 'express', 'regional'
-                               Only departures with enabled types are returned.
-                               None means no transport type filtering.
+                               Keys: 'suburban', 'subway', 'tram', 'bus',
+                               'ferry', 'express', 'regional'. If provided,
+                               only departures with enabled types returned.
+                               None = no transport type filtering.
     
     Returns:
         Filtered list of Departure objects, or None if API request fails.

@@ -122,8 +122,9 @@ async def async_setup_entry(
 class TransportSensor(SensorEntity):
     """Home Assistant sensor entity for displaying VBB/BVG departures.
     
-    This sensor fetches real-time departure information from VBB transport.rest API
-    with automatic fallback to BVG API during connectivity issues. It supports:
+    This sensor fetches real-time departure information from VBB
+    transport.rest API with automatic fallback to BVG API during
+    connectivity issues. It supports:
     - Multiple directions separated by commas
     - Automatic deduplication of Ringbahn departures
     - ETag-based HTTP caching to reduce API calls
@@ -151,7 +152,9 @@ class TransportSensor(SensorEntity):
         self.excluded_stops: str | None = config.get(CONF_DEPARTURES_EXCLUDED_STOPS)
         self.sensor_name: str | None = config.get(CONF_DEPARTURES_NAME)
         self.direction: str | None = config.get(CONF_DEPARTURES_DIRECTION)
-        self.direction_name: str | None = config.get(CONF_DEPARTURES_DIRECTION_NAME)  # v0.1.5: direction text for BVG filtering
+        self.direction_name: str | None = config.get(
+            CONF_DEPARTURES_DIRECTION_NAME
+        )  # v0.1.5: direction text for BVG filtering
         self.duration: int = DEFAULT_DEPARTURES_DURATION
         self.walking_time: int = config.get(CONF_DEPARTURES_WALKING_TIME) or DEFAULT_WALKING_TIME
         # we add +1 minute anyway to delete the "just gone" transport
@@ -637,18 +640,18 @@ class TransportSensor(SensorEntity):
 
         return parsed_departures
 
-    def _backfill_direction_name_from_departures(self, departures: list[Departure]) -> None:
-        """Extract and store direction name from API response for BVG fallback filtering.
+    def _backfill_direction_name_from_departures(
+        self, departures: list[Departure]
+    ) -> None:
+        """Extract and store direction name from API response for BVG fallback.
         
-        v0.1.5 feature: When BVG fallback is enabled and direction_name is not yet stored,
-        extract it from the first departure object. The transport.rest API includes the clear
-        direction name in each departure's direction field. This enables BVG fallback
-        filtering to work correctly.
-        
-        Only executes if BVG_FALLBACK_ENABLED is True (only needed for fallback).
+        v0.1.5 feature: When BVG fallback enabled and direction_name not yet
+        stored, extract from first departure. transport.rest API includes clear
+        direction name in each departure's direction field, enabling BVG fallback
+        filtering to work correctly. Only executes if BVG_FALLBACK_ENABLED=True.
         
         Args:
-            departures: List of Departure objects from transport.rest API response
+            departures: List of Departure objects from transport.rest response
         """
         if not BVG_FALLBACK_ENABLED:
             return
@@ -817,7 +820,8 @@ class TransportSensor(SensorEntity):
                     cached = self._cached_departures_by_request.get(request_key)
                     if cached:
                         _LOGGER.debug(
-                            "[transport.rest] 304 Not Modified (stop_id=%s, direction=%s, cached=%d)",
+                            "[transport.rest] 304 Not Modified "
+                            "(stop_id=%s, direction=%s, cached=%d)",
                             self.stop_id,
                             direction or "all",
                             len(cached),
