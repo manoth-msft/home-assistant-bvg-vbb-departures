@@ -2,7 +2,7 @@
 
 Diese Integration bringt **Live-Daten des öffentlichen Nahverkehrs** aus Berlin und Brandenburg direkt in dein Home Assistant Dashboard. Sie ruft Echtzeit-Abfahrten von BVG- und VBB-Haltestellen ab – inklusive Liniennummern, Zielorten, Abfahrtszeiten und Verspätungen. Egal ob zur Arbeit, zum Abholen der Kinder oder einfach, um zu wissen, wann die nächste Ringbahn kommt – diese Integration zeigt die kommenden Abfahrten in einem klaren, gut lesbaren Format.
 
-![Beispiel einer Echtzeit-Anzeige am S+U Gesundbrunnen Bahnhof in Berlin, ähnlich wie die Darstellung im Home Assistant Dashboard.](./screenshots/timetable_card2s.jpg)![Weiteres Beispiel](./screenshots/timetable_card3s.jpg)![Weiteres Beispiel](./screenshots/timetable_card1s.jpg)
+![Beispiel einer Echtzeit-Anzeige](./screenshots/timetable_card1s.jpg)
 
 ## ✨ Funktionen
 - **Echtzeit-Abfahrten** von BVG- & VBB-Haltestellen, inklusive Liniennummern, Zielorten und Verspätungen, aktualisiert alle 120 Sekunden

@@ -6,7 +6,7 @@
 
 Whether you're commuting, picking up your kids, or just wondering when the next Ringbahn arrives, this integration shows upcoming departures in a clean, readable format.
 
-![Example of a real-time public transport display at S+U Gesundbrunnen Bhf  station in Berlin, similar to how departures appear in the Home Assistant dashboard.](./docs/screenshots/timetable_card2s.jpg)![Another example](./docs/screenshots/timetable_card3s.jpg)![Another example](./docs/screenshots/timetable_card1s.jpg)
+![Example of a real-time public transport display](./docs/screenshots/timetable_card1s.jpg)
 
 ## ✨ Features
 - **Real-time departures** from Berlin and Brandenburg transport stops with line numbers, destinations, delays, and platforms
