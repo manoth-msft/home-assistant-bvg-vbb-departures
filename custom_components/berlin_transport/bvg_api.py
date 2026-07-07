@@ -12,6 +12,7 @@ import aiohttp
 import async_timeout
 
 from .bvg_departure import parse_bvg_departures
+from .const import API_USER_AGENT
 from .departure import Departure
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ async def fetch_bvg_departures(
     try:
         headers = {
             "Referer": BVG_REFERER,
-            "User-Agent": "Home Assistant BVG Integration",
+            "User-Agent": API_USER_AGENT,
         }
         params = {
             "lang": "de",

@@ -812,7 +812,7 @@ class TransportSensor(SensorEntity):
             or returns 304 Not Modified (cache still valid).
         """
         request_key = self._request_variant_key(direction)
-        request_headers = {}
+        request_headers = {"User-Agent": API_USER_AGENT}
 
         known_etag = self._etag_by_request.get(request_key)
         if known_etag:

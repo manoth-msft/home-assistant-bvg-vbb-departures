@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4.3] - 2026-07-07
+
+### Changed
+- Set a proper `User-Agent` header for all API requests, dynamically built from `manifest.json` (version + documentation URL). Previously, transport.rest requests used the generic Home Assistant User-Agent; BVG API requests used a static placeholder string.
+
 ## [0.1.4.2] - 2026-07-07
 
 ### Known Limitations (API Availability)

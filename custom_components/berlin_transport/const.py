@@ -1,9 +1,16 @@
+import json
+import pathlib
 from datetime import timedelta
+
+_MANIFEST = json.loads((pathlib.Path(__file__).parent / "manifest.json").read_text(encoding="utf-8"))
+_VERSION = _MANIFEST.get("version", "unknown")
+_DOCS_URL = _MANIFEST.get("documentation", "https://github.com/manoth-msft/home-assistant-bvg-vbb-departures")
 
 DOMAIN = "berlin_transport"
 SCAN_INTERVAL = timedelta(seconds=120)
 FALLBACK_TIME = timedelta(minutes=15)
 API_ENDPOINT = "https://v6.vbb.transport.rest"
+API_USER_AGENT = f"home-assistant-bvg-vbb-departures/{_VERSION} ({_DOCS_URL})"
 API_MAX_RESULTS = 20
 DEFAULT_DEPARTURES_DURATION = 60
 
