@@ -100,8 +100,7 @@ async def fetch_bvg_departures(
         return None
 
 
-# pylint: disable=too-many-arguments
-async def fetch_and_parse_bvg_departures(
+async def fetch_and_parse_bvg_departures(  # pylint: disable=too-many-positional-arguments
     session: aiohttp.ClientSession,
     stop_name: str,
     max_journeys: int = 30,
