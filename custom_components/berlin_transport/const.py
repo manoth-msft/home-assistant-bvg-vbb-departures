@@ -2,9 +2,14 @@ import json
 import pathlib
 from datetime import timedelta
 
-_MANIFEST = json.loads((pathlib.Path(__file__).parent / "manifest.json").read_text(encoding="utf-8"))
+_MANIFEST = json.loads(
+    (pathlib.Path(__file__).parent / "manifest.json").read_text(encoding="utf-8")
+)
 _VERSION = _MANIFEST.get("version", "unknown")
-_DOCS_URL = _MANIFEST.get("documentation", "https://github.com/manoth-msft/home-assistant-bvg-vbb-departures")
+_DOCS_URL = _MANIFEST.get(
+    "documentation",
+    "https://github.com/manoth-msft/home-assistant-bvg-vbb-departures",
+)
 
 DOMAIN = "berlin_transport"
 SCAN_INTERVAL = timedelta(seconds=120)
