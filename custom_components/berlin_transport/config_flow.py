@@ -173,6 +173,9 @@ async def get_stop_id(
         - stops: List of matching stops with 'name' and 'id' fields
         - error_key: String key for error message (e.g. "api_rate_limited") or None if successful
     """
+    error_key: str | None = None
+    primary_or_secondary_error: str | None = "api_error"
+    
     # Try primary endpoint first (if enabled)
     if PRIM_API_ENABLED:
         stops, error_key = await _try_fetch_stops_from_endpoint(
@@ -194,7 +197,7 @@ async def get_stop_id(
         primary_or_secondary_error = secondary_error
     else:
         # Secondary disabled, use primary error if we have it
-        primary_or_secondary_error = error_key if not PRIM_API_ENABLED else "api_error"
+        primary_or_secondary_error = error_key or "api_error"
     
     # Both endpoints failed or disabled, return the appropriate error
     _LOGGER.warning(
