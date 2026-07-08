@@ -37,6 +37,13 @@
           "regional": "Include RB/RE"
         }
       }
+    },
+    "error": {
+      "api_error": "Stop search failed: {error_details}",
+      "no_stops_found": "No stops found for '{search_query}'. Try a different or shorter name."
+    },
+    "abort": {
+      "already_configured": "This stop is already configured."
     }
   }
 }

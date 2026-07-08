@@ -53,7 +53,25 @@ The new entity will receive the same ID as the previous one, so your dashboards 
 
 ---
 
-## API & Data
+### Q: Stop search shows an error during configuration. What should I do?
+
+When searching for a stop, you might see errors like:
+- **"Stop search failed: API rate limited..."**
+- **"Stop search failed: API is slow or unreachable..."**
+- **"Stop search failed: Cannot connect to API server..."**
+
+Or you might see:
+- **"No stops found for '{search_query}'. Try a different or shorter name."**
+
+**Why this happens:**
+- **API errors**: The VBB/transport.rest API has rate limits (100 requests/minute) and occasionally experiences outages or slowness.
+- **No stops found**: Your search term doesn't match any known stop. Partial names are supported.
+
+**Solution:**
+- **For API errors**: Wait a few minutes and try again. The integration will show you the specific error type (rate limit, timeout, unreachable), so you know what's happening. Once the API recovers, your configuration will succeed.
+- **For "no stops found"**: Try a different or shorter search term. For example, search for "Rudow" instead of "Rudow Station", or "Alexanderplatz" instead of "S+U Alexanderplatz". Partial matches are supported.
+
+---
 
 ### Q: What data source does this integration use?
 

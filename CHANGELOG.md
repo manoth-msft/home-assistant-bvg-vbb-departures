@@ -7,7 +7,10 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Set a proper `User-Agent` header for all API requests, dynamically built from `manifest.json` (version + documentation URL). Previously, transport.rest requests used the generic Home Assistant User-Agent; BVG API requests used a static placeholder string.
 - **Enabled BVG fallback API** when transport.rest experiences outages. BVG now serves as an active fallback during transport.rest failures, applying only transport type filters (bus, subway, etc.). Direction filtering is not possible due to limitations of the API used. BVG API integration based on the work by [@select](https://github.com/select).
-- Improved fallback logging to show the impact of transport type filters (raw departures vs. after filtering).
+- **Smart merge of BVG delays into cached departures**: When transport.rest fails but we have cached data, the integration now merges fresh delay information from BVG API into the previously filtered departures. This preserves the user's direction filtering while keeping delays up-to-date.
+- **Optimized backoff strategy**: Reduced maximum backoff from 15 to 10 minutes. BVG fallback is now called immediately on transport.rest failure, but subsequent retries respect the backoff period (no redundant API calls every 120 seconds during backoff).
+- Improved fallback logging to show the impact of transport type filters (raw departures vs. after filtering) and data merge statistics (matched/unmatched departures).
+- **Improved config flow error messages**: When stop search fails, the UI now shows specific error details (e.g., "API rate limited", "timeout", "unreachable") and actionable guidance ("Try again in a few minutes") instead of a generic error. Also distinguishes between API failures and "no stops found" scenarios with appropriate guidance.
 
 ## [0.1.4.2] - 2026-07-07
 

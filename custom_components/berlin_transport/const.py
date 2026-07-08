@@ -24,7 +24,7 @@ API_REQUEST_TIMEOUT = 240  # 4 minutes
 
 # Backoff configuration
 BACKOFF_BASE = 2  # Exponential backoff base (2^n)
-BACKOFF_MAX_SECONDS = 900  # 15 minutes maximum backoff
+BACKOFF_MAX_SECONDS = 600  # 10 minutes maximum backoff
 
 # Feature gates
 BVG_FALLBACK_ENABLED = True  # Enable BVG API as fallback when transport.rest fails

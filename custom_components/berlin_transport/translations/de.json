@@ -37,6 +37,13 @@
           "regional": "RB/RE anzeigen"
         }
       }
+    },
+    "error": {
+      "api_error": "Haltestellen-Suche fehlgeschlagen: {error_details}",
+      "no_stops_found": "Keine Haltestelle gefunden für '{search_query}'. Versuche einen kürzeren oder anderen Namen."
+    },
+    "abort": {
+      "already_configured": "Diese Haltestelle ist bereits konfiguriert."
     }
   }
 }

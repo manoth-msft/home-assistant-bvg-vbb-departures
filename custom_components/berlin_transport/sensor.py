@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import copy
+from dataclasses import replace
 from typing import Any, Mapping
 from datetime import datetime, timedelta, timezone
 
@@ -434,35 +435,18 @@ class TransportSensor(SensorEntity):
     async def _handle_backoff_period(self, now_utc: datetime) -> None:
         """Handle requests during backoff period.
         
-        When in backoff, the sensor uses cached data if available. The entity
-        is kept available to preserve attributes (health_status, last_updated, etc)
+        When in backoff, the sensor uses cached data only. No new API calls are made.
+        The entity is kept available to preserve attributes (health_status, last_updated, etc)
         which are important for debugging API issues.
         """
         # Keep entity available so attributes remain visible during backoff
         self._attr_available = True
 
         _LOGGER.debug(
-            "[backoff] Stop %s in backoff until %s, attempting BVG fallback API",
+            "[backoff] Stop %s in backoff until %s, using cached data",
             self.stop_id,
             self._next_retry_at,
         )
-
-        # Try BVG fallback during backoff (if enabled)
-        if BVG_FALLBACK_ENABLED:
-            departures = await self._fetch_bvg_fallback()
-        else:
-            departures = None
-        if departures is not None:
-            self._consecutive_failures = 0
-            self.last_update_success = now_utc
-            self._data_source = "bvg_api"
-            self._attr_available = True
-            self.departures = departures
-            self._invalidate_attributes_cache()
-            _LOGGER.info(
-                "[fallback] BVG API provided departures during backoff for stop %s",
-                self.stop_id,
-            )
 
     async def _handle_failed_fetch(self, now_utc: datetime) -> None:
         """Handle failed API fetch with exponential backoff and fallback activation.
@@ -497,16 +481,28 @@ class TransportSensor(SensorEntity):
         else:
             departures = None
         if departures is not None:
-            self.departures = departures
-            self._data_source = "bvg_api"
+            # Smart merge: Combine cached transport.rest data with BVG delays
+            if self.departures:
+                merged = self._merge_bvg_delays_into_cached_departures(
+                    cached_departures=self.departures,
+                    bvg_departures=departures,
+                )
+                self.departures = merged
+                self._data_source = "transport.rest+bvg_delays"
+            else:
+                # No cached data: use BVG as fallback
+                self.departures = departures
+                self._data_source = "bvg_api"
+            
             self.last_update_success = now_utc
             self._consecutive_failures = 0
             self._next_retry_at = None
             self._using_fallback = False
             _LOGGER.info(
-                "[fallback] BVG API recovered departures immediately after transport.rest failure "
-                "for stop %s",
+                "[fallback] BVG API updated departures immediately after transport.rest failure "
+                "for stop %s (data_source=%s)",
                 self.stop_id,
+                self._data_source,
             )
             return
 
@@ -585,6 +581,75 @@ class TransportSensor(SensorEntity):
             return
 
         _LOGGER.exception("[transport.rest] Unexpected error (stop_id=%s): %s", self.stop_id, ex)
+
+    def _merge_bvg_delays_into_cached_departures(
+        self,
+        cached_departures: list[Departure],
+        bvg_departures: list[Departure],
+    ) -> list[Departure]:
+        """Merge BVG delay information into cached transport.rest departures.
+        
+        Smart fallback strategy: When transport.rest fails, instead of replacing
+        well-filtered transport.rest data with unfiltered BVG data, this method
+        intelligently merges the two:
+        
+        1. Keeps cached transport.rest departures (they have correct direction filtering)
+        2. Updates delay information from BVG API (fresh, current data)
+        3. Updates warning information from BVG API if available
+        4. Preserves original line type, direction, and other metadata
+        
+        This ensures users continue to see correctly-filtered departures while
+        getting the most current delay information available.
+        
+        Matching strategy: Uses (line_name, time) tuple as key. This is stable across
+        both APIs and avoids matching issues with slight timestamp differences.
+        
+        Args:
+            cached_departures: Original, well-filtered departures from transport.rest
+            bvg_departures: Fresh departures from BVG API (may contain unfiltered data)
+            
+        Returns:
+            List of cached departures with updated delays from BVG matches
+        """
+        # Build BVG lookup table for O(1) matching
+        bvg_lookup: dict[tuple[str, str], Departure] = {}
+        for dep in bvg_departures:
+            key = (dep.line_name, dep.time)
+            if key not in bvg_lookup:  # Keep first match (in case of duplicates)
+                bvg_lookup[key] = dep
+        
+        # Merge: Keep cached departures, update delays from BVG
+        merged: list[Departure] = []
+        merged_count = 0
+        unmatched_count = 0
+        
+        for cached_dep in cached_departures:
+            key = (cached_dep.line_name, cached_dep.time)
+            bvg_dep = bvg_lookup.get(key)
+            
+            if bvg_dep is not None:
+                # Found matching BVG departure: update delay and warnings
+                updated_dep = replace(
+                    cached_dep,
+                    delay=bvg_dep.delay,
+                    warnings=bvg_dep.warnings,
+                )
+                merged.append(updated_dep)
+                merged_count += 1
+            else:
+                # No BVG match: Keep cached departure as-is
+                merged.append(cached_dep)
+                unmatched_count += 1
+        
+        _LOGGER.debug(
+            "[merge] Merged BVG delays into cached departures for stop %s: "
+            "matched=%d, unmatched=%d (kept old data)",
+            self.stop_id,
+            merged_count,
+            unmatched_count,
+        )
+        
+        return merged
 
     async def _fetch_bvg_fallback(self) -> list[Departure] | None:
         """Fallback to BVG API when transport.rest fails.

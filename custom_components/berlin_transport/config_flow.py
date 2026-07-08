@@ -61,7 +61,7 @@ NAME_SCHEMA = vol.Schema(
 
 async def get_stop_id(
     session: aiohttp.ClientSession, name: str
-) -> list[dict[str, Any]] | None:
+) -> tuple[bool, list[dict[str, Any]], str | None]:
     """Search for VBB stops by name using the transport.rest API.
     
     Args:
@@ -69,9 +69,14 @@ async def get_stop_id(
         name: Stop name or partial name to search for
         
     Returns:
-        List of matching stops with fields like 'name' and 'id', or None if search fails.
+        Tuple of (success, stops, error_message) where:
+        - success: True if API call succeeded (even if no results found)
+        - stops: List of matching stops with 'name' and 'id' fields
+        - error_message: Description of what went wrong (or None if successful)
     """
     stops: Any = []
+    error_msg = None
+    
     try:
         async with async_timeout.timeout(240):
             response = await session.get(
@@ -86,6 +91,7 @@ async def get_stop_id(
     except aiohttp.ClientResponseError as ex:
         if ex.status == 429:
             retry_after = ex.headers.get("Retry-After") if ex.headers else None
+            error_msg = f"API rate limited. Retry in {retry_after}s if provided, or wait a few minutes"
             _LOGGER.warning(
                 "[config_flow] Stop search rate limited (query=%s, status=%s, retry_after=%s)",
                 name,
@@ -93,38 +99,49 @@ async def get_stop_id(
                 retry_after,
             )
         else:
+            error_msg = f"transport.rest API error (HTTP {ex.status}). Try again in a few minutes"
             _LOGGER.warning(
                 "[config_flow] Stop search HTTP error (query=%s, status=%s)",
                 name,
                 ex.status,
             )
     except aiohttp.ClientConnectorError as ex:
+        error_msg = "Cannot connect to API server (unreachable). Try again in a few minutes"
         _LOGGER.warning("[config_flow] Stop search connection error (query=%s): %s", name, ex)
     except aiohttp.ServerDisconnectedError as ex:
+        error_msg = "API server disconnected. Try again in a few minutes"
         _LOGGER.warning("[config_flow] Stop search server disconnected (query=%s): %s", name, ex)
     except aiohttp.ClientError as ex:
+        error_msg = f"Network error ({type(ex).__name__}). Try again in a few minutes"
         _LOGGER.warning("[config_flow] Stop search client error (query=%s): %s", name, ex)
     except TimeoutError as ex:
+        error_msg = "API is slow or unreachable (timeout). Try again in a few minutes"
         _LOGGER.warning("[config_flow] Stop search timeout (query=%s): %s", name, ex)
     except Exception as ex:  # pylint: disable=broad-exception-caught
+        error_msg = "Unexpected error while searching"
         _LOGGER.exception(
             "[config_flow] Unexpected error while searching stop IDs (query=%s): %s", name, ex
         )
+
+    # If there was an error, return early
+    if error_msg is not None:
+        return False, [], error_msg
 
     if not isinstance(stops, list):
         _LOGGER.warning(
             "[config_flow] API returned unexpected stop search payload type for query '%s'", name
         )
-        return []
+        return True, [], None
 
-    _LOGGER.debug("[config_flow] Found %s stops for query '%s'", len(stops), name)
-
-    # convert api data into objects
-    return [
+    # Convert API data into our format
+    result = [
         {CONF_DEPARTURES_NAME: stop["name"], CONF_DEPARTURES_STOP_ID: stop["id"]}
         for stop in stops
         if stop["type"] == "stop"
     ]
+    
+    _LOGGER.debug("[config_flow] Found %s stops for query '%s'", len(result), name)
+    return True, result, None
 
 
 def list_stops(stops: list[dict[str, Any]]) -> vol.Schema:
@@ -173,15 +190,49 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 data_schema=NAME_SCHEMA,
                 errors={},
             )
+        
         session = async_get_clientsession(self.hass)
-        self.data[CONF_FOUND_STOPS] = await get_stop_id(
+        success, stops, error_msg = await get_stop_id(
             session, user_input[CONF_SEARCH]
         )
 
+        # If API call failed, show error message and ask to retry
+        if not success:
+            _LOGGER.warning(
+                "[config_flow] Stop search failed for query '%s': %s",
+                user_input[CONF_SEARCH],
+                error_msg,
+            )
+            return self.async_show_form(
+                step_id="user",
+                data_schema=NAME_SCHEMA,
+                errors={"base": "api_error"},
+                description_placeholders={
+                    "error_details": error_msg or "Unknown error",
+                },
+            )
+
+        # If no stops found (but API succeeded)
+        if not stops:
+            _LOGGER.debug(
+                "[config_flow] No stops found for query '%s'",
+                user_input[CONF_SEARCH],
+            )
+            return self.async_show_form(
+                step_id="user",
+                data_schema=NAME_SCHEMA,
+                errors={"base": "no_stops_found"},
+                description_placeholders={
+                    "search_query": user_input[CONF_SEARCH],
+                },
+            )
+
+        # Stops found, proceed to selection
+        self.data[CONF_FOUND_STOPS] = stops
         _LOGGER.debug(
             "[config_flow] Found stops for query '%s': %s stops",
             user_input[CONF_SEARCH],
-            len(self.data[CONF_FOUND_STOPS]),
+            len(stops),
         )
 
         return await self.async_step_stop()
@@ -189,8 +240,16 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_stop(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
+        """Handle stop selection from search results."""
         if user_input is None:
+            # Safety check: should never happen because we validate in async_step_user
+            if not self.data.get(CONF_FOUND_STOPS):
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=NAME_SCHEMA,
+                    errors={},
+                )
+            
             return self.async_show_form(
                 step_id="stop",
                 data_schema=list_stops(self.data[CONF_FOUND_STOPS]),
