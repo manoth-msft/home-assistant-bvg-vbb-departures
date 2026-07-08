@@ -552,38 +552,38 @@ class TransportSensor(SensorEntity):
             if ex.status == 429:
                 retry_after = ex.headers.get("Retry-After") if ex.headers else None
                 _LOGGER.warning(
-                    "[transport.rest] Rate limited (stop_id=%s, status=%s, retry_after=%s)",
-                    self.stop_id,
+                    "[transport.rest] Rate limited (stop=%s, status=%s, retry_after=%s)",
+                    self.stop_name,
                     ex.status,
                     retry_after,
                 )
                 return
             _LOGGER.warning(
-                "[transport.rest] HTTP error (stop_id=%s, status=%s)",
-                self.stop_id,
+                "[transport.rest] HTTP error (stop=%s, status=%s)",
+                self.stop_name,
                 ex.status,
             )
             return
 
         if isinstance(ex, aiohttp.ClientConnectorError):
-            _LOGGER.warning("[transport.rest] Connection error (stop_id=%s): %s", self.stop_id, ex)
+            _LOGGER.warning("[transport.rest] Connection error (stop=%s): %s", self.stop_name, ex)
             return
 
         if isinstance(ex, aiohttp.ServerDisconnectedError):
             _LOGGER.warning(
-                "[transport.rest] Server disconnected (stop_id=%s): %s", self.stop_id, ex
+                "[transport.rest] Server disconnected (stop=%s): %s", self.stop_name, ex
             )
             return
 
         if isinstance(ex, aiohttp.ClientError):
-            _LOGGER.warning("[transport.rest] Client error (stop_id=%s): %s", self.stop_id, ex)
+            _LOGGER.warning("[transport.rest] Client error (stop=%s): %s", self.stop_name, ex)
             return
 
         if isinstance(ex, TimeoutError):
-            _LOGGER.warning("[transport.rest] Request timeout (stop_id=%s): %s", self.stop_id, ex)
+            _LOGGER.warning("[transport.rest] Request timeout (stop=%s): %s", self.stop_name, ex)
             return
 
-        _LOGGER.exception("[transport.rest] Unexpected error (stop_id=%s): %s", self.stop_id, ex)
+        _LOGGER.exception("[transport.rest] Unexpected error (stop=%s): %s", self.stop_name, ex)
 
     def _merge_bvg_delays_into_cached_departures(
         self,
@@ -749,19 +749,22 @@ class TransportSensor(SensorEntity):
         Constructs query parameters including departure time (adjusted for walking time),
         result limits, duration window, and transport type filters (configured by user).
         
+        Direction filter is only included if it has a non-empty value, as the API
+        rejects empty direction parameters (must be a valid IBNR).
+        
         Args:
-            direction: Optional direction filter string (empty string if None)
+            direction: Optional direction filter string (stop IBNR). Only included
+                       in params if non-empty.
         
         Returns:
             Dictionary of API parameters ready to send to transport.rest endpoint
         """
-        return {
+        params = {
             "when": (
                 self._get_now_utc() + timedelta(minutes=self.walking_time)
             ).isoformat(),
             "results": API_MAX_RESULTS,
             "duration": self.duration,
-            "direction": direction or "",
             "suburban": str(bool(self.config.get(CONF_TYPE_SUBURBAN))).lower(),
             "subway": str(bool(self.config.get(CONF_TYPE_SUBWAY))).lower(),
             "tram": str(bool(self.config.get(CONF_TYPE_TRAM))).lower(),
@@ -770,6 +773,13 @@ class TransportSensor(SensorEntity):
             "express": str(bool(self.config.get(CONF_TYPE_EXPRESS))).lower(),
             "regional": str(bool(self.config.get(CONF_TYPE_REGIONAL))).lower(),
         }
+        
+        # Only include direction if it has a non-empty value.
+        # API rejects empty direction parameters: "direction must be an IBNR"
+        if direction:
+            params["direction"] = direction
+        
+        return params
 
     def _get_excluded_stops(self) -> list[str]:
         """Parse comma-separated excluded stop IDs from configuration.
@@ -894,8 +904,8 @@ class TransportSensor(SensorEntity):
                     if cached:
                         _LOGGER.debug(
                             "[transport.rest] 304 Not Modified "
-                            "(stop_id=%s, direction=%s, cached=%d)",
-                            self.stop_id,
+                            "(stop=%s, direction=%s, cached=%d)",
+                            self.stop_name,
                             direction or "all",
                             len(cached),
                         )
@@ -923,8 +933,8 @@ class TransportSensor(SensorEntity):
         
         # Log successful fetch
         _LOGGER.debug(
-            "[transport.rest] 200 OK (stop_id=%s, direction=%s, departures=%d)",
-            self.stop_id,
+            "[transport.rest] 200 OK (stop=%s, direction=%s, departures=%d)",
+            self.stop_name,
             direction or "all",
             len(parsed_departures),
         )

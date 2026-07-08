@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [0.1.5] - 2026-07-07
 
+### Fixed
+- **CRITICAL:** Fixed API query parameter bug where empty direction values were sent as `direction=` (empty string) instead of omitting the parameter entirely. This caused HTTP 500 errors "direction must be an IBNR" for all sensors without direction filtering. Direction parameter is now only included when it contains a valid value.
+
 ### Changed
 - Set a proper `User-Agent` header for all API requests, dynamically built from `manifest.json` (version + documentation URL). Previously, transport.rest requests used the generic Home Assistant User-Agent; BVG API requests used a static placeholder string.
 - **Enabled BVG fallback API** when transport.rest experiences outages. BVG now serves as an active fallback during transport.rest failures, applying only transport type filters (bus, subway, etc.). Direction filtering is not possible due to limitations of the API used. BVG API integration based on the work by [@select](https://github.com/select).
