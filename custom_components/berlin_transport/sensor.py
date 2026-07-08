@@ -159,6 +159,8 @@ class TransportSensor(SensorEntity):
         self.stop_id: int = config[CONF_DEPARTURES_STOP_ID]
         self.excluded_stops: str | None = config.get(CONF_DEPARTURES_EXCLUDED_STOPS)
         self.sensor_name: str | None = config.get(CONF_DEPARTURES_NAME)
+        # Use sensor_name for logging/display, fall back to stop_id if not configured
+        self.stop_name: str = self.sensor_name or str(self.stop_id)
         self.direction: str | None = config.get(CONF_DEPARTURES_DIRECTION)
         self.duration: int = DEFAULT_DEPARTURES_DURATION
         self.walking_time: int = config.get(CONF_DEPARTURES_WALKING_TIME) or DEFAULT_WALKING_TIME
