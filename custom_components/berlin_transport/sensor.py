@@ -28,8 +28,9 @@ from .const import (  # pylint: disable=unused-import
     DOMAIN,  # noqa
     SCAN_INTERVAL,  # noqa
     FALLBACK_TIME,
-    API_ENDPOINT,
-    SECONDARY_TRANSPORT_REST_URL,
+    PRIM_API_ENDPOINT,
+    SEC_API_ENDPOINT,
+    BVG_API_ENDPOINT,
     API_MAX_RESULTS,
     API_REQUEST_TIMEOUT,
     API_USER_AGENT,
@@ -38,6 +39,8 @@ from .const import (  # pylint: disable=unused-import
     DEFAULT_WALKING_TIME,
     BACKOFF_BASE,
     BACKOFF_MAX_SECONDS,
+    PRIM_API_ENABLED,
+    SEC_API_ENABLED,
     BVG_FALLBACK_ENABLED,
     CACHE_TTL_SECONDS,
     CONF_DEPARTURES,
@@ -184,11 +187,9 @@ class TransportSensor(SensorEntity):
         self._next_retry_at: datetime | None = None
         self._attr_available: bool = True
         self._data_source: str = (
-            "transport.rest"  # Track which API provided current data
+            "primary"  # Track which API provided current data: primary, secondary, or bvg_api
         )
-        self._using_fallback: bool = (
-            False  # True when in fallback mode (backoff active)
-        )
+        self._last_successful_endpoint: str | None = None  # Track endpoint source for primary/secondary
         # Request cache tracking with timestamps for TTL-based cleanup
         self._cache_request_keys: dict[str, datetime] = {}  # Key → last updated timestamp
         # Lock for thread-safe state updates
@@ -545,7 +546,11 @@ class TransportSensor(SensorEntity):
         self._next_retry_at = None
         self._using_fallback = False
         self.last_update_success = now_utc
-        self._data_source = "transport.rest"
+        # Set data_source based on which endpoint succeeded
+        if self._last_successful_endpoint:
+            self._data_source = self._last_successful_endpoint
+        else:
+            self._data_source = "primary"  # Fallback to primary if unknown
         self._attr_available = True
         self.departures = departures
         self._invalidate_attributes_cache()
@@ -986,17 +991,38 @@ class TransportSensor(SensorEntity):
         Returns:
             List of Departure objects from first successful endpoint, or None if both fail.
         """
-        # Try primary endpoint first
-        departures = await self._try_fetch_from_endpoint(API_ENDPOINT, "primary", direction)
-        if departures is not None:
-            return departures
+        # Try primary endpoint first (if enabled)
+        if PRIM_API_ENABLED:
+            departures = await self._try_fetch_from_endpoint(PRIM_API_ENDPOINT, "primary", direction)
+            if departures is not None:
+                self._last_successful_endpoint = "primary"
+                return departures
         
-        # Primary failed, try secondary endpoint
-        departures = await self._try_fetch_from_endpoint(SECONDARY_TRANSPORT_REST_URL, "secondary", direction)
-        if departures is not None:
-            return departures
+        # Primary failed or disabled, try secondary endpoint (if enabled)
+        if SEC_API_ENABLED:
+            _LOGGER.info(
+                "[failover] Primary endpoint failed/disabled, attempting secondary (stop=%s, direction=%s)",
+                self.stop_name,
+                direction or "all",
+            )
+            departures = await self._try_fetch_from_endpoint(SEC_API_ENDPOINT, "secondary", direction)
+            if departures is not None:
+                self._last_successful_endpoint = "secondary"
+                _LOGGER.info(
+                    "[failover] Secondary endpoint SUCCESS (stop=%s, direction=%s, departures=%d)",
+                    self.stop_name,
+                    direction or "all",
+                    len(departures),
+                )
+                return departures
         
-        # Both endpoints failed, return None to trigger backoff + BVG fallback
+        # Both endpoints failed or disabled, return None to trigger backoff + BVG fallback
+        _LOGGER.warning(
+            "[failover] Primary and secondary endpoints failed/disabled (stop=%s, direction=%s). "
+            "Activating backoff + BVG fallback.",
+            self.stop_name,
+            direction or "all",
+        )
         return None
 
     async def fetch_departures(self) -> list[Departure] | None:

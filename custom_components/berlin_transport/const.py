@@ -14,8 +14,13 @@ _DOCS_URL = _MANIFEST.get(
 DOMAIN = "berlin_transport"
 SCAN_INTERVAL = timedelta(seconds=120)
 FALLBACK_TIME = timedelta(minutes=15)
-API_ENDPOINT = "https://v6.vbb.transport.rest"
-SECONDARY_TRANSPORT_REST_URL = "https://we1external.dynv6.net:8500"  # Fallback to secondary instance
+
+# Primary and secondary API endpoints
+PRIM_API_ENDPOINT = "https://v6.vbb.transport.rest"
+SEC_API_ENDPOINT = "https://we1external.dynv6.net:8500"  # Secondary/redundant instance
+BVG_API_ENDPOINT = "https://www.bvg.de/connection-search/v1/departureBoard"
+BVG_API_REFERER = "https://www.bvg.de/"
+
 API_USER_AGENT = f"home-assistant-bvg-vbb-departures/{_VERSION} ({_DOCS_URL})"
 API_MAX_RESULTS = 20
 DEFAULT_DEPARTURES_DURATION = 60
@@ -28,6 +33,8 @@ BACKOFF_BASE = 2  # Exponential backoff base (2^n)
 BACKOFF_MAX_SECONDS = 600  # 10 minutes maximum backoff
 
 # Feature gates
+PRIM_API_ENABLED = True  # Enable primary VBB/transport.rest API
+SEC_API_ENABLED = True  # Enable secondary/redundant API endpoint
 BVG_FALLBACK_ENABLED = True  # Enable BVG API as fallback when transport.rest fails
 
 # Cache management

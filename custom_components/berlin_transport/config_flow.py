@@ -17,9 +17,11 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers import selector
 
 from .const import (
-    API_ENDPOINT,
-    SECONDARY_TRANSPORT_REST_URL,
+    PRIM_API_ENDPOINT,
+    SEC_API_ENDPOINT,
     API_MAX_RESULTS,
+    PRIM_API_ENABLED,
+    SEC_API_ENABLED,
     CONF_DEPARTURES_STOP_ID,
     CONF_DEPARTURES_NAME,
     CONF_SELECTED_STOP,
@@ -161,30 +163,37 @@ async def get_stop_id(
         - stops: List of matching stops with 'name' and 'id' fields
         - error_key: String key for error message (e.g. "api_rate_limited") or None if successful
     """
-    # Try primary endpoint first
-    stops, error_key = await _try_fetch_stops_from_endpoint(
-        session, API_ENDPOINT, "primary", name
-    )
-    if error_key is None:
-        # Primary succeeded (with or without results)
-        return True, stops or [], None
+    # Try primary endpoint first (if enabled)
+    if PRIM_API_ENABLED:
+        stops, error_key = await _try_fetch_stops_from_endpoint(
+            session, PRIM_API_ENDPOINT, "primary", name
+        )
+        if error_key is None:
+            # Primary succeeded (with or without results)
+            return True, stops or [], None
     
-    # Primary failed, try secondary endpoint
-    stops, secondary_error = await _try_fetch_stops_from_endpoint(
-        session, SECONDARY_TRANSPORT_REST_URL, "secondary", name
-    )
-    if secondary_error is None:
-        # Secondary succeeded (with or without results)
-        return True, stops or [], None
+    # Primary failed or disabled, try secondary endpoint (if enabled)
+    if SEC_API_ENABLED:
+        stops, secondary_error = await _try_fetch_stops_from_endpoint(
+            session, SEC_API_ENDPOINT, "secondary", name
+        )
+        if secondary_error is None:
+            # Secondary succeeded (with or without results)
+            return True, stops or [], None
+        # Secondary failed, use its error for reporting
+        primary_or_secondary_error = secondary_error
+    else:
+        # Secondary disabled, use primary error if we have it
+        primary_or_secondary_error = error_key if not PRIM_API_ENABLED else "api_error"
     
-    # Both endpoints failed, return the primary error
+    # Both endpoints failed or disabled, return the appropriate error
     _LOGGER.warning(
-        "[config_flow] Stop search failed on both endpoints (query=%s, primary_error=%s, secondary_error=%s)",
+        "[config_flow] Stop search failed on both endpoints (query=%s, primary_enabled=%s, secondary_enabled=%s)",
         name,
-        error_key,
-        secondary_error,
+        PRIM_API_ENABLED,
+        SEC_API_ENABLED,
     )
-    return False, [], error_key
+    return False, [], primary_or_secondary_error
 
 
 def list_stops(stops: list[dict[str, Any]]) -> vol.Schema:

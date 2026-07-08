@@ -12,13 +12,10 @@ import aiohttp
 import async_timeout
 
 from .bvg_departure import parse_bvg_departures
-from .const import API_USER_AGENT
+from .const import API_USER_AGENT, BVG_API_ENDPOINT, BVG_API_REFERER
 from .departure import Departure
 
 _LOGGER = logging.getLogger(__name__)
-
-BVG_DEPARTURE_BOARD_URL = "https://www.bvg.de/connection-search/v1/departureBoard"
-BVG_REFERER = "https://www.bvg.de/"
 
 
 def _log_bvg_error(error_type: str, stop_name: str, error: Exception) -> None:
@@ -60,7 +57,7 @@ async def fetch_bvg_departures(
     """
     try:
         headers = {
-            "Referer": BVG_REFERER,
+            "Referer": BVG_API_REFERER,
             "User-Agent": API_USER_AGENT,
         }
         params = {
@@ -77,7 +74,7 @@ async def fetch_bvg_departures(
 
         async with async_timeout.timeout(timeout_seconds):
             response = await session.get(
-                url=BVG_DEPARTURE_BOARD_URL,
+                url=BVG_API_ENDPOINT,
                 params=params,
                 headers=headers,
             )
