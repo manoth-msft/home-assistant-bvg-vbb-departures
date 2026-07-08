@@ -39,7 +39,12 @@
       }
     },
     "error": {
-      "api_error": "Haltestellen-Suche fehlgeschlagen: {error_details}",
+      "api_rate_limited": "Haltestellen-Suche fehlgeschlagen: API-Limit erreicht (zu viele Anfragen). Versuchen Sie es in ein paar Minuten erneut.",
+      "api_unreachable": "Haltestellen-Suche fehlgeschlagen: API-Server nicht erreichbar. Versuchen Sie es in ein paar Minuten erneut.",
+      "api_timeout": "Haltestellen-Suche fehlgeschlagen: API-Server antwortet nicht. Versuchen Sie es in ein paar Minuten erneut.",
+      "api_disconnected": "Haltestellen-Suche fehlgeschlagen: Verbindung zum API-Server unterbrochen. Versuchen Sie es in ein paar Minuten erneut.",
+      "api_error": "Haltestellen-Suche fehlgeschlagen: Netzwerk- oder API-Fehler. Versuchen Sie es in ein paar Minuten erneut.",
+      "api_unexpected_error": "Haltestellen-Suche fehlgeschlagen: Ein unerwarteter Fehler ist aufgetreten. Prüfen Sie die Logs.",
       "no_stops_found": "Keine Haltestelle gefunden für '{search_query}'. Versuche einen kürzeren oder anderen Namen."
     },
     "abort": {

@@ -39,7 +39,12 @@
       }
     },
     "error": {
-      "api_error": "Stop search failed: {error_details}",
+      "api_rate_limited": "Stop search failed: API rate limited (too many requests). Try again in a few minutes.",
+      "api_unreachable": "Stop search failed: Cannot reach the API server. Try again in a few minutes.",
+      "api_timeout": "Stop search failed: API is slow or not responding. Try again in a few minutes.",
+      "api_disconnected": "Stop search failed: API server disconnected. Try again in a few minutes.",
+      "api_error": "Stop search failed: Network or API error. Try again in a few minutes.",
+      "api_unexpected_error": "Stop search failed: An unexpected error occurred. Check the logs.",
       "no_stops_found": "No stops found for '{search_query}'. Try a different or shorter name."
     },
     "abort": {

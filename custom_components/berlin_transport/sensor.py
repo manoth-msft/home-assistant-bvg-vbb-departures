@@ -481,8 +481,11 @@ class TransportSensor(SensorEntity):
         else:
             departures = None
         if departures is not None:
-            # Smart merge: Combine cached transport.rest data with BVG delays
-            if self.departures:
+            # Smart merge: Only merge if cache is from transport.rest.
+            # If cache is from previous BVG fallback, don't merge (BVG + BVG = useless)
+            if (self.departures and 
+                self._data_source in ("transport.rest", "transport.rest+bvg_delays")):
+                # Cache from transport.rest: merge BVG delays into filtered data
                 merged = self._merge_bvg_delays_into_cached_departures(
                     cached_departures=self.departures,
                     bvg_departures=departures,
@@ -490,7 +493,7 @@ class TransportSensor(SensorEntity):
                 self.departures = merged
                 self._data_source = "transport.rest+bvg_delays"
             else:
-                # No cached data: use BVG as fallback
+                # No cache or cache is from previous BVG fallback → just use BVG
                 self.departures = departures
                 self._data_source = "bvg_api"
             
@@ -596,7 +599,8 @@ class TransportSensor(SensorEntity):
         1. Keeps cached transport.rest departures (they have correct direction filtering)
         2. Updates delay information from BVG API (fresh, current data)
         3. Updates warning information from BVG API if available
-        4. Preserves original line type, direction, and other metadata
+        4. Adds new departures from BVG that weren't in cache (fills gaps)
+        5. Preserves original line type, direction, and other metadata
         
         This ensures users continue to see correctly-filtered departures while
         getting the most current delay information available.
@@ -609,19 +613,24 @@ class TransportSensor(SensorEntity):
             bvg_departures: Fresh departures from BVG API (may contain unfiltered data)
             
         Returns:
-            List of cached departures with updated delays from BVG matches
+            List of cached departures with updated delays from BVG, plus new BVG departures
         """
-        # Build BVG lookup table for O(1) matching
+        # Build lookup tables for O(1) matching
         bvg_lookup: dict[tuple[str, str], Departure] = {}
         for dep in bvg_departures:
             key = (dep.line_name, dep.time)
             if key not in bvg_lookup:  # Keep first match (in case of duplicates)
                 bvg_lookup[key] = dep
         
+        cache_lookup: dict[tuple[str, str], bool] = {}
+        for dep in cached_departures:
+            cache_lookup[(dep.line_name, dep.time)] = True
+        
         # Merge: Keep cached departures, update delays from BVG
         merged: list[Departure] = []
         merged_count = 0
         unmatched_count = 0
+        new_count = 0
         
         for cached_dep in cached_departures:
             key = (cached_dep.line_name, cached_dep.time)
@@ -641,12 +650,20 @@ class TransportSensor(SensorEntity):
                 merged.append(cached_dep)
                 unmatched_count += 1
         
+        # Add new departures from BVG that weren't in cache
+        for bvg_dep in bvg_departures:
+            key = (bvg_dep.line_name, bvg_dep.time)
+            if key not in cache_lookup:
+                merged.append(bvg_dep)
+                new_count += 1
+        
         _LOGGER.debug(
             "[merge] Merged BVG delays into cached departures for stop %s: "
-            "matched=%d, unmatched=%d (kept old data)",
+            "matched=%d, unmatched=%d (kept old), new=%d (added)",
             self.stop_id,
             merged_count,
             unmatched_count,
+            new_count,
         )
         
         return merged

@@ -69,13 +69,13 @@ async def get_stop_id(
         name: Stop name or partial name to search for
         
     Returns:
-        Tuple of (success, stops, error_message) where:
+        Tuple of (success, stops, error_key) where:
         - success: True if API call succeeded (even if no results found)
         - stops: List of matching stops with 'name' and 'id' fields
-        - error_message: Description of what went wrong (or None if successful)
+        - error_key: String key for error message (e.g. "api_rate_limited") or None if successful
     """
     stops: Any = []
-    error_msg = None
+    error_key = None
     
     try:
         async with async_timeout.timeout(240):
@@ -90,11 +90,8 @@ async def get_stop_id(
             stops = await response.json()
     except aiohttp.ClientResponseError as ex:
         if ex.status == 429:
+            error_key = "api_rate_limited"
             retry_after = ex.headers.get("Retry-After") if ex.headers else None
-            error_msg = (
-                f"API rate limited. Retry in {retry_after}s if provided, "
-                "or wait a few minutes"
-            )
             _LOGGER.warning(
                 "[config_flow] Stop search rate limited (query=%s, status=%s, retry_after=%s)",
                 name,
@@ -102,33 +99,33 @@ async def get_stop_id(
                 retry_after,
             )
         else:
-            error_msg = f"transport.rest API error (HTTP {ex.status}). Try again in a few minutes"
+            error_key = "api_error"
             _LOGGER.warning(
                 "[config_flow] Stop search HTTP error (query=%s, status=%s)",
                 name,
                 ex.status,
             )
     except aiohttp.ClientConnectorError as ex:
-        error_msg = "Cannot connect to API server (unreachable). Try again in a few minutes"
+        error_key = "api_unreachable"
         _LOGGER.warning("[config_flow] Stop search connection error (query=%s): %s", name, ex)
     except aiohttp.ServerDisconnectedError as ex:
-        error_msg = "API server disconnected. Try again in a few minutes"
+        error_key = "api_disconnected"
         _LOGGER.warning("[config_flow] Stop search server disconnected (query=%s): %s", name, ex)
     except aiohttp.ClientError as ex:
-        error_msg = f"Network error ({type(ex).__name__}). Try again in a few minutes"
+        error_key = "api_error"
         _LOGGER.warning("[config_flow] Stop search client error (query=%s): %s", name, ex)
     except TimeoutError as ex:
-        error_msg = "API is slow or unreachable (timeout). Try again in a few minutes"
+        error_key = "api_timeout"
         _LOGGER.warning("[config_flow] Stop search timeout (query=%s): %s", name, ex)
     except Exception as ex:  # pylint: disable=broad-exception-caught
-        error_msg = "Unexpected error while searching"
+        error_key = "api_unexpected_error"
         _LOGGER.exception(
             "[config_flow] Unexpected error while searching stop IDs (query=%s): %s", name, ex
         )
 
     # If there was an error, return early
-    if error_msg is not None:
-        return False, [], error_msg
+    if error_key is not None:
+        return False, [], error_key
 
     if not isinstance(stops, list):
         _LOGGER.warning(
@@ -195,7 +192,7 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             )
         
         session = async_get_clientsession(self.hass)
-        success, stops, error_msg = await get_stop_id(
+        success, stops, error_key = await get_stop_id(
             session, user_input[CONF_SEARCH]
         )
 
@@ -204,15 +201,12 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.warning(
                 "[config_flow] Stop search failed for query '%s': %s",
                 user_input[CONF_SEARCH],
-                error_msg,
+                error_key,
             )
             return self.async_show_form(
                 step_id="user",
                 data_schema=NAME_SCHEMA,
-                errors={"base": "api_error"},
-                description_placeholders={
-                    "error_details": error_msg or "Unknown error",
-                },
+                errors={"base": error_key},
             )
 
         # If no stops found (but API succeeded)
