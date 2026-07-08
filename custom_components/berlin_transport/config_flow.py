@@ -91,7 +91,10 @@ async def get_stop_id(
     except aiohttp.ClientResponseError as ex:
         if ex.status == 429:
             retry_after = ex.headers.get("Retry-After") if ex.headers else None
-            error_msg = f"API rate limited. Retry in {retry_after}s if provided, or wait a few minutes"
+            error_msg = (
+                f"API rate limited. Retry in {retry_after}s if provided, "
+                "or wait a few minutes"
+            )
             _LOGGER.warning(
                 "[config_flow] Stop search rate limited (query=%s, status=%s, retry_after=%s)",
                 name,

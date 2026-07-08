@@ -414,7 +414,7 @@ class TransportSensor(SensorEntity):
 
             # Check if we're in backoff period
             if self._next_retry_at is not None and now_utc < self._next_retry_at:
-                await self._handle_backoff_period(now_utc)
+                await self._handle_backoff_period()
                 return
 
             # Backoff finished: reset fallback flag and try transport.rest again
@@ -432,7 +432,7 @@ class TransportSensor(SensorEntity):
             else:
                 self._handle_successful_fetch(departures, now_utc)
 
-    async def _handle_backoff_period(self, now_utc: datetime) -> None:
+    async def _handle_backoff_period(self) -> None:
         """Handle requests during backoff period.
         
         When in backoff, the sensor uses cached data only. No new API calls are made.
