@@ -62,7 +62,7 @@ NAME_SCHEMA = vol.Schema(
 )
 
 
-async def _try_fetch_stops_from_endpoint(
+async def _try_fetch_stops_from_endpoint(  # pylint: disable=too-many-return-statements
     session: aiohttp.ClientSession, endpoint_url: str, endpoint_name: str, name: str
 ) -> tuple[list[dict[str, Any]] | None, str | None]:
     """Try to fetch stops from a specific endpoint.
@@ -123,7 +123,12 @@ async def _try_fetch_stops_from_endpoint(
         _LOGGER.debug("[config_flow] %s timeout (query=%s)", endpoint_name, name)
         return None, "api_timeout"
     except Exception as ex:  # pylint: disable=broad-exception-caught
-        _LOGGER.debug("[config_flow] Unexpected error on %s (query=%s): %s", endpoint_name, name, ex)
+        _LOGGER.debug(
+            "[config_flow] Unexpected error on %s (query=%s): %s",
+            endpoint_name,
+            name,
+            ex,
+        )
         return None, "api_unexpected_error"
 
     if not isinstance(stops, list):
@@ -141,7 +146,12 @@ async def _try_fetch_stops_from_endpoint(
         if stop["type"] == "stop"
     ]
     
-    _LOGGER.debug("[config_flow] Found %s stops on %s for query '%s'", len(result), endpoint_name, name)
+    _LOGGER.debug(
+        "[config_flow] Found %s stops on %s for query '%s'",
+        len(result),
+        endpoint_name,
+        name,
+    )
     return result, None
 
 
@@ -188,7 +198,8 @@ async def get_stop_id(
     
     # Both endpoints failed or disabled, return the appropriate error
     _LOGGER.warning(
-        "[config_flow] Stop search failed on both endpoints (query=%s, primary_enabled=%s, secondary_enabled=%s)",
+        "[config_flow] Stop search failed on both endpoints "
+        "(query=%s, primary_enabled=%s, secondary_enabled=%s)",
         name,
         PRIM_API_ENABLED,
         SEC_API_ENABLED,

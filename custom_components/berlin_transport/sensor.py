@@ -1,4 +1,5 @@
 # mypy: disable-error-code="attr-defined"
+# pylint: disable=too-many-lines
 
 """The Berlin (BVG) and Brandenburg (VBB) transport integration."""
 
@@ -187,9 +188,12 @@ class TransportSensor(SensorEntity):
         self._next_retry_at: datetime | None = None
         self._attr_available: bool = True
         self._data_source: str = (
-            "primary"  # Track which API provided current data: primary, secondary, or bvg_api
+            "primary"  # primary, secondary, or bvg_api
         )
-        self._last_successful_endpoint: str | None = None  # Track endpoint source for primary/secondary
+        # Track which endpoint (primary/secondary) succeeded
+        self._last_successful_endpoint: str | None = None
+        # Track if we're in fallback mode (backoff active)
+        self._using_fallback: bool = False
         # Request cache tracking with timestamps for TTL-based cleanup
         self._cache_request_keys: dict[str, datetime] = {}  # Key → last updated timestamp
         # Lock for thread-safe state updates
@@ -851,7 +855,11 @@ class TransportSensor(SensorEntity):
         return f"{endpoint_name}:{request_key}"
 
     def _update_cache(
-        self, endpoint_name: str, request_key: str, response_etag: str | None, parsed: list[Departure]
+        self,
+        endpoint_name: str,
+        request_key: str,
+        response_etag: str | None,
+        parsed: list[Departure],
     ) -> None:
         """Update ETag and departure cache with TTL-based cleanup.
         
@@ -891,7 +899,7 @@ class TransportSensor(SensorEntity):
                     CACHE_TTL_SECONDS // 3600,
                 )
 
-    async def _try_fetch_from_endpoint(
+    async def _try_fetch_from_endpoint(  # pylint: disable=too-many-locals
         self, endpoint_url: str, endpoint_name: str, direction: str | None
     ) -> list[Departure] | None:
         """Attempt to fetch departures from a specific endpoint with ETag caching.
@@ -1001,25 +1009,29 @@ class TransportSensor(SensorEntity):
         # Primary failed or disabled, try secondary endpoint (if enabled)
         if SEC_API_ENABLED:
             _LOGGER.info(
-                "[failover] Primary endpoint failed/disabled, attempting secondary (stop=%s, direction=%s)",
+                "[failover] Primary endpoint failed/disabled, "
+                "attempting secondary (stop=%s, direction=%s)",
                 self.stop_name,
                 direction or "all",
             )
-            departures = await self._try_fetch_from_endpoint(SEC_API_ENDPOINT, "secondary", direction)
+            departures = await self._try_fetch_from_endpoint(
+                SEC_API_ENDPOINT, "secondary", direction
+            )
             if departures is not None:
                 self._last_successful_endpoint = "secondary"
                 _LOGGER.info(
-                    "[failover] Secondary endpoint SUCCESS (stop=%s, direction=%s, departures=%d)",
+                    "[failover] Secondary endpoint SUCCESS "
+                    "(stop=%s, direction=%s, departures=%d)",
                     self.stop_name,
                     direction or "all",
                     len(departures),
                 )
                 return departures
         
-        # Both endpoints failed or disabled, return None to trigger backoff + BVG fallback
+        # Both endpoints failed or disabled, trigger backoff + BVG fallback
         _LOGGER.warning(
-            "[failover] Primary and secondary endpoints failed/disabled (stop=%s, direction=%s). "
-            "Activating backoff + BVG fallback.",
+            "[failover] Primary and secondary endpoints failed/disabled "
+            "(stop=%s, direction=%s). Activating backoff + BVG fallback.",
             self.stop_name,
             direction or "all",
         )
