@@ -971,7 +971,8 @@ class TransportSensor(SensorEntity):
         excluded_stops = self._get_excluded_stops()
         parsed_departures = self._parse_departures(departures_data, excluded_stops)
 
-        self._update_cache(endpoint_name, request_key, response.headers.get("ETag"), parsed_departures)
+        etag = response.headers.get("ETag")
+        self._update_cache(endpoint_name, request_key, etag, parsed_departures)
         
         # Log successful fetch
         _LOGGER.debug(
@@ -1001,7 +1002,9 @@ class TransportSensor(SensorEntity):
         """
         # Try primary endpoint first (if enabled)
         if PRIM_API_ENABLED:
-            departures = await self._try_fetch_from_endpoint(PRIM_API_ENDPOINT, "primary", direction)
+            departures = await self._try_fetch_from_endpoint(
+                PRIM_API_ENDPOINT, "primary", direction
+            )
             if departures is not None:
                 self._last_successful_endpoint = "primary"
                 return departures
