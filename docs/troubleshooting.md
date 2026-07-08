@@ -38,14 +38,25 @@ Replace `YOUR_STOP_NAME` with your stop. If this returns no results, the API doe
 ---
 
 #### 3. API is experiencing issues
-The VBB API might be temporarily unreachable.
+The VBB API might be temporarily unreachable. The integration has built-in failover to handle this:
 
-**Check:** Visit [https://v6.vbb.transport.rest/api.html](https://v6.vbb.transport.rest/api.html) and see if the API is responding.
+**Failover sequence:**
+1. Primary API (`v6.vbb.transport.rest`) fails → Tries secondary endpoint immediately
+2. Secondary endpoint fails → Activates BVG fallback API with automatic backoff
+3. All APIs recover → Automatically switches back to primary
+
+**Check:** 
+- Look at the `health_status` attribute on your sensor:
+  - `ok` = Primary API working
+  - `degraded` = Using secondary endpoint or BVG fallback
+  - `stale` = Last successful data still visible but outdated
+- Visit [https://v6.vbb.transport.rest/api.html](https://v6.vbb.transport.rest/api.html) to check primary API status
 
 **Solution:** 
-- Wait 5-10 minutes for the API to recover
-- The integration will retry automatically
-- When the API recovers, your sensor will update automatically
+- No action needed! The integration handles failover automatically
+- Your last successful departures stay visible during outages
+- Once any API recovers, your sensor will resume normal updates
+- Wait 5-10 minutes for recovery; if issues persist, check your network connectivity
 
 ---
 

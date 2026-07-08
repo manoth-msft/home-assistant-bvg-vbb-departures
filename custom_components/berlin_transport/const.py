@@ -15,6 +15,7 @@ DOMAIN = "berlin_transport"
 SCAN_INTERVAL = timedelta(seconds=120)
 FALLBACK_TIME = timedelta(minutes=15)
 API_ENDPOINT = "https://v6.vbb.transport.rest"
+SECONDARY_TRANSPORT_REST_URL = "https://we1external.dynv6.net:8500"  # Fallback to secondary instance
 API_USER_AGENT = f"home-assistant-bvg-vbb-departures/{_VERSION} ({_DOCS_URL})"
 API_MAX_RESULTS = 20
 DEFAULT_DEPARTURES_DURATION = 60

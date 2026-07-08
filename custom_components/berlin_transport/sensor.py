@@ -29,6 +29,7 @@ from .const import (  # pylint: disable=unused-import
     SCAN_INTERVAL,  # noqa
     FALLBACK_TIME,
     API_ENDPOINT,
+    SECONDARY_TRANSPORT_REST_URL,
     API_MAX_RESULTS,
     API_REQUEST_TIMEOUT,
     API_USER_AGENT,
@@ -829,8 +830,23 @@ class TransportSensor(SensorEntity):
                 )
         return parsed
 
+    def _etag_cache_key(self, endpoint_name: str, request_key: str) -> str:
+        """Generate endpoint-aware cache key for ETag storage.
+        
+        Ensures separate ETags for primary and secondary endpoints, preventing
+        ETag collision when APIs return different response data.
+        
+        Args:
+            endpoint_name: "primary" or "secondary"
+            request_key: Base request variant key (stop_id + direction)
+        
+        Returns:
+            Combined cache key: "endpoint_name:request_key"
+        """
+        return f"{endpoint_name}:{request_key}"
+
     def _update_cache(
-        self, request_key: str, response_etag: str | None, parsed: list[Departure]
+        self, endpoint_name: str, request_key: str, response_etag: str | None, parsed: list[Departure]
     ) -> None:
         """Update ETag and departure cache with TTL-based cleanup.
         
@@ -839,17 +855,19 @@ class TransportSensor(SensorEntity):
         unbounded memory growth when users change direction filters or other config.
         
         Args:
+            endpoint_name: "primary" or "secondary" endpoint
             request_key: Unique key combining stop_id and direction parameters
             response_etag: ETag header from API response (None if not provided)
             parsed: Parsed list of Departure objects from API response
         """
+        cache_key = self._etag_cache_key(endpoint_name, request_key)
         if response_etag:
-            self._etag_by_request[request_key] = response_etag
-            self._cached_departures_by_request[request_key] = copy.deepcopy(parsed)
+            self._etag_by_request[cache_key] = response_etag
+            self._cached_departures_by_request[cache_key] = copy.deepcopy(parsed)
 
-            # Track or refresh timestamp for this request key
+            # Track or refresh timestamp for this cache key
             now_utc = self._get_now_utc()
-            self._cache_request_keys[request_key] = now_utc
+            self._cache_request_keys[cache_key] = now_utc
 
             # Remove entries older than CACHE_TTL_SECONDS
             # (user changed config or direction is outdated)
@@ -868,27 +886,29 @@ class TransportSensor(SensorEntity):
                     CACHE_TTL_SECONDS // 3600,
                 )
 
-    async def fetch_directional_departure(
-        self, direction: str | None
+    async def _try_fetch_from_endpoint(
+        self, endpoint_url: str, endpoint_name: str, direction: str | None
     ) -> list[Departure] | None:
-        """Fetch departures from transport.rest API for a specific direction.
+        """Attempt to fetch departures from a specific endpoint with ETag caching.
         
-        Makes an HTTP request to the VBB transport.rest API with ETag validation
-        to avoid re-fetching unchanged data (304 Not Modified responses). Uses
-        cached ETags from previous requests to minimize bandwidth.
+        Tries a single API endpoint with full ETag validation and error handling.
+        Returns None on any failure (HTTP error, timeout, parsing error), allowing
+        the caller to fall back to the next endpoint.
         
         Args:
-            direction: Direction string to filter results (e.g., "north", "south").
-                      None means no direction filtering (return all departures).
+            endpoint_url: Base URL of the API endpoint (e.g., https://v6.vbb.transport.rest)
+            endpoint_name: Name for logging ("primary" or "secondary")
+            direction: Direction string to filter results, None for all directions
         
         Returns:
-            List of Departure objects for this direction, or None if the request fails
-            or returns 304 Not Modified (cache still valid).
+            List of Departure objects on success, None on any failure.
         """
         request_key = self._request_variant_key(direction)
+        cache_key = self._etag_cache_key(endpoint_name, request_key)
         request_headers = {"User-Agent": API_USER_AGENT}
 
-        known_etag = self._etag_by_request.get(request_key)
+        # Check for cached ETag
+        known_etag = self._etag_by_request.get(cache_key)
         if known_etag:
             request_headers["If-None-Match"] = known_etag
 
@@ -896,17 +916,18 @@ class TransportSensor(SensorEntity):
             params = self._build_transport_params(direction)
             async with async_timeout.timeout(API_REQUEST_TIMEOUT):
                 response = await self.session.get(
-                    url=f"{API_ENDPOINT}/stops/{self.stop_id}/departures",
+                    url=f"{endpoint_url}/stops/{self.stop_id}/departures",
                     params=params,
                     headers=request_headers,
                 )
 
                 if response.status == 304:
-                    cached = self._cached_departures_by_request.get(request_key)
+                    cached = self._cached_departures_by_request.get(cache_key)
                     if cached:
                         _LOGGER.debug(
                             "[transport.rest] 304 Not Modified "
-                            "(stop=%s, direction=%s, cached=%d)",
+                            "(endpoint=%s, stop=%s, direction=%s, cached=%d)",
+                            endpoint_name,
                             self.stop_name,
                             direction or "all",
                             len(cached),
@@ -917,13 +938,19 @@ class TransportSensor(SensorEntity):
                 response.raise_for_status()
                 departures = await response.json()
         except (aiohttp.ClientError, TimeoutError) as ex:
-            self._log_departure_fetch_error(ex)
+            _LOGGER.debug(
+                "[transport.rest] %s failed for stop %s: %s",
+                endpoint_name,
+                self.stop_name,
+                ex,
+            )
             return None
 
         departures_data = departures.get("departures") or []
         if not isinstance(departures_data, list):
             _LOGGER.warning(
-                "API response for stop %s has unexpected departures format",
+                "API response from %s for stop %s has unexpected departures format",
+                endpoint_name,
                 self.stop_id,
             )
             return None
@@ -931,17 +958,46 @@ class TransportSensor(SensorEntity):
         excluded_stops = self._get_excluded_stops()
         parsed_departures = self._parse_departures(departures_data, excluded_stops)
 
-        self._update_cache(request_key, response.headers.get("ETag"), parsed_departures)
+        self._update_cache(endpoint_name, request_key, response.headers.get("ETag"), parsed_departures)
         
         # Log successful fetch
         _LOGGER.debug(
-            "[transport.rest] 200 OK (stop=%s, direction=%s, departures=%d)",
+            "[transport.rest] 200 OK (endpoint=%s, stop=%s, direction=%s, departures=%d)",
+            endpoint_name,
             self.stop_name,
             direction or "all",
             len(parsed_departures),
         )
         
         return parsed_departures
+
+    async def fetch_directional_departure(
+        self, direction: str | None
+    ) -> list[Departure] | None:
+        """Fetch departures with dual-API failover: primary → secondary → None.
+        
+        Implements sequential failover between primary (v6.vbb.transport.rest) and
+        secondary (custom instance) endpoints. Only returns None if both fail,
+        allowing the caller to invoke backoff and BVG fallback logic.
+        
+        Args:
+            direction: Direction string to filter results, None for all directions
+        
+        Returns:
+            List of Departure objects from first successful endpoint, or None if both fail.
+        """
+        # Try primary endpoint first
+        departures = await self._try_fetch_from_endpoint(API_ENDPOINT, "primary", direction)
+        if departures is not None:
+            return departures
+        
+        # Primary failed, try secondary endpoint
+        departures = await self._try_fetch_from_endpoint(SECONDARY_TRANSPORT_REST_URL, "secondary", direction)
+        if departures is not None:
+            return departures
+        
+        # Both endpoints failed, return None to trigger backoff + BVG fallback
+        return None
 
     async def fetch_departures(self) -> list[Departure] | None:
         """Fetch departures from VBB API with multi-direction support and error resilience.

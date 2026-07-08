@@ -2,7 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.5] - 2026-07-07
+## [0.1.5] - 2026-07-08
+
+### Added
+- **Dual-API failover system** for improved redundancy and uptime. The integration now attempts to fetch departures in the following sequence:
+  1. Primary endpoint: `v6.vbb.transport.rest` (official)
+  2. Secondary endpoint: `we1external.dynv6.net:8500` (custom instance for redundancy)
+  3. BVG fallback + backoff: Only triggered if both primary and secondary endpoints fail
+  - Sequential failover means no delay between primary and secondary attempts (immediate fallback)
+  - Both endpoints are fully compatible with the same API format and query parameters
+  - Separate ETag caches per endpoint prevent cache collision and ensure accurate conditional requests
+  - Stop search in configuration UI also uses dual-API failover for improved robustness
 
 ### Fixed
 - **CRITICAL:** Fixed API query parameter bug where empty direction values were sent as `direction=` (empty string) instead of omitting the parameter entirely. This caused HTTP 500 errors "direction must be an IBNR" for all sensors without direction filtering. Direction parameter is now only included when it contains a valid value.
@@ -14,6 +24,9 @@ All notable changes to this project will be documented in this file.
 - **Optimized backoff strategy**: Reduced maximum backoff from 15 to 10 minutes. BVG fallback is now called immediately on transport.rest failure, but subsequent retries respect the backoff period (no redundant API calls every 120 seconds during backoff).
 - Improved fallback logging to show the impact of transport type filters (raw departures vs. after filtering) and data merge statistics (matched/unmatched departures).
 - **Improved config flow error messages**: When stop search fails, the UI now shows specific error details (e.g., "API rate limited", "timeout", "unreachable") and actionable guidance ("Try again in a few minutes") instead of a generic error. Also distinguishes between API failures and "no stops found" scenarios with appropriate guidance.
+- Refactored transport API fetching into modular `_try_fetch_from_endpoint()` method for better code reusability and testability
+- Updated ETag caching to be endpoint-aware (`primary:request_key` vs `secondary:request_key`) to prevent conflicts
+- Improved config flow stop search with dual-endpoint failover and better logging granularity
 
 ## [0.1.4.2] - 2026-07-07
 

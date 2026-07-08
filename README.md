@@ -13,7 +13,8 @@ Whether you're commuting, picking up your kids, or just wondering when the next 
 - **Dashboard card integration** for clean, user-friendly display
 - **Smart filtering**: direction, excluded stops, transport types (bus, tram, ferry, etc.)
 - **Customization**: walking time offset, official VBB colors, Ringbahn ⟳/⟲ toggle
-- **Resilient fallback**: Automatic fallback to BVG API if the main source (transport.rest) is unavailable
+- **Dual-API failover**: Redundant fallback chain — Primary → Secondary → BVG API — ensures maximum uptime
+- **Resilient caching**: Last successful departures stay visible during API outages
 - **Languages**: German and English support
 
 ## 💿 Installation

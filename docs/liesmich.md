@@ -9,7 +9,8 @@ Diese Integration bringt **Live-Daten des öffentlichen Nahverkehrs** aus Berlin
 - **Dashboard-Kartenintegration** für eine klare, benutzerfreundliche Anzeige der kommenden Abfahrten
 - **Erweiterte Filteroptionen**: Richtung, ausgeschlossene Haltestellen, Verkehrsmitteltypen (Bus, Tram, Fähre usw.)
 - **Anpassungen**: Wegezeiten-Berücksichtigung, offizielle VBB-Linienfarben, Ringbahn ⟳/⟲-Filter
-- **Ausfallsicherheit**: Automatisches Fallback zur BVG-API, wenn die Hauptquelle (transport.rest) nicht verfügbar ist
+- **Dual-API-Failover**: Redundante Fallback-Kette — Primär → Sekundär → BVG-API — für maximale Verfügbarkeit
+- **Resiliente Zwischenspeicherung**: Letzte erfolgreiche Abfahrten bleiben sichtbar während API-Ausfällen
 - **Sprachunterstützung** mit deutschen und englischen Übersetzungen
 
 ## 💿 Installation

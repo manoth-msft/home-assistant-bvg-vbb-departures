@@ -18,6 +18,7 @@ from homeassistant.helpers import selector
 
 from .const import (
     API_ENDPOINT,
+    SECONDARY_TRANSPORT_REST_URL,
     API_MAX_RESULTS,
     CONF_DEPARTURES_STOP_ID,
     CONF_DEPARTURES_NAME,
@@ -59,10 +60,96 @@ NAME_SCHEMA = vol.Schema(
 )
 
 
+async def _try_fetch_stops_from_endpoint(
+    session: aiohttp.ClientSession, endpoint_url: str, endpoint_name: str, name: str
+) -> tuple[list[dict[str, Any]] | None, str | None]:
+    """Try to fetch stops from a specific endpoint.
+    
+    Attempts a single API endpoint and returns the results or None on failure.
+    This allows the caller to fall back to the next endpoint.
+    
+    Args:
+        session: aiohttp ClientSession for making HTTP requests
+        endpoint_url: Base URL of the API endpoint
+        endpoint_name: Name for logging ("primary" or "secondary")
+        name: Stop name or partial name to search for
+        
+    Returns:
+        Tuple of (stops, error_key) where:
+        - stops: List of stops on success, None on failure
+        - error_key: Error key if failed, None if successful
+    """
+    try:
+        async with async_timeout.timeout(240):
+            response = await session.get(
+                url=f"{endpoint_url}/locations",
+                params={
+                    "query": name,
+                    "results": API_MAX_RESULTS,
+                },
+            )
+            response.raise_for_status()
+            stops = await response.json()
+    except aiohttp.ClientResponseError as ex:
+        error_key = "api_rate_limited" if ex.status == 429 else "api_error"
+        if error_key == "api_rate_limited":
+            retry_after = ex.headers.get("Retry-After") if ex.headers else None
+            _LOGGER.debug(
+                "[config_flow] Stop search rate limited on %s (query=%s, retry_after=%s)",
+                endpoint_name,
+                name,
+                retry_after,
+            )
+        else:
+            _LOGGER.debug(
+                "[config_flow] Stop search HTTP error on %s (query=%s, status=%s)",
+                endpoint_name,
+                name,
+                ex.status,
+            )
+        return None, error_key
+    except aiohttp.ClientConnectorError:
+        _LOGGER.debug("[config_flow] %s unreachable (query=%s)", endpoint_name, name)
+        return None, "api_unreachable"
+    except aiohttp.ServerDisconnectedError:
+        _LOGGER.debug("[config_flow] %s disconnected (query=%s)", endpoint_name, name)
+        return None, "api_disconnected"
+    except aiohttp.ClientError:
+        _LOGGER.debug("[config_flow] %s client error (query=%s)", endpoint_name, name)
+        return None, "api_error"
+    except TimeoutError:
+        _LOGGER.debug("[config_flow] %s timeout (query=%s)", endpoint_name, name)
+        return None, "api_timeout"
+    except Exception as ex:  # pylint: disable=broad-exception-caught
+        _LOGGER.debug("[config_flow] Unexpected error on %s (query=%s): %s", endpoint_name, name, ex)
+        return None, "api_unexpected_error"
+
+    if not isinstance(stops, list):
+        _LOGGER.debug(
+            "[config_flow] %s returned unexpected payload type for query '%s'",
+            endpoint_name,
+            name,
+        )
+        return None, None
+
+    # Convert API data into our format
+    result = [
+        {CONF_DEPARTURES_NAME: stop["name"], CONF_DEPARTURES_STOP_ID: stop["id"]}
+        for stop in stops
+        if stop["type"] == "stop"
+    ]
+    
+    _LOGGER.debug("[config_flow] Found %s stops on %s for query '%s'", len(result), endpoint_name, name)
+    return result, None
+
+
 async def get_stop_id(
     session: aiohttp.ClientSession, name: str
 ) -> tuple[bool, list[dict[str, Any]], str | None]:
-    """Search for VBB stops by name using the transport.rest API.
+    """Search for VBB stops by name with dual-API failover.
+    
+    Attempts to fetch stops from primary endpoint first, then secondary
+    endpoint if primary fails. Returns immediately on success from either.
     
     Args:
         session: aiohttp ClientSession for making HTTP requests
@@ -74,74 +161,30 @@ async def get_stop_id(
         - stops: List of matching stops with 'name' and 'id' fields
         - error_key: String key for error message (e.g. "api_rate_limited") or None if successful
     """
-    stops: Any = []
-    error_key = None
+    # Try primary endpoint first
+    stops, error_key = await _try_fetch_stops_from_endpoint(
+        session, API_ENDPOINT, "primary", name
+    )
+    if error_key is None:
+        # Primary succeeded (with or without results)
+        return True, stops or [], None
     
-    try:
-        async with async_timeout.timeout(240):
-            response = await session.get(
-                url=f"{API_ENDPOINT}/locations",
-                params={
-                    "query": name,
-                    "results": API_MAX_RESULTS,
-                },
-            )
-            response.raise_for_status()
-            stops = await response.json()
-    except aiohttp.ClientResponseError as ex:
-        if ex.status == 429:
-            error_key = "api_rate_limited"
-            retry_after = ex.headers.get("Retry-After") if ex.headers else None
-            _LOGGER.warning(
-                "[config_flow] Stop search rate limited (query=%s, status=%s, retry_after=%s)",
-                name,
-                ex.status,
-                retry_after,
-            )
-        else:
-            error_key = "api_error"
-            _LOGGER.warning(
-                "[config_flow] Stop search HTTP error (query=%s, status=%s)",
-                name,
-                ex.status,
-            )
-    except aiohttp.ClientConnectorError as ex:
-        error_key = "api_unreachable"
-        _LOGGER.warning("[config_flow] Stop search connection error (query=%s): %s", name, ex)
-    except aiohttp.ServerDisconnectedError as ex:
-        error_key = "api_disconnected"
-        _LOGGER.warning("[config_flow] Stop search server disconnected (query=%s): %s", name, ex)
-    except aiohttp.ClientError as ex:
-        error_key = "api_error"
-        _LOGGER.warning("[config_flow] Stop search client error (query=%s): %s", name, ex)
-    except TimeoutError as ex:
-        error_key = "api_timeout"
-        _LOGGER.warning("[config_flow] Stop search timeout (query=%s): %s", name, ex)
-    except Exception as ex:  # pylint: disable=broad-exception-caught
-        error_key = "api_unexpected_error"
-        _LOGGER.exception(
-            "[config_flow] Unexpected error while searching stop IDs (query=%s): %s", name, ex
-        )
-
-    # If there was an error, return early
-    if error_key is not None:
-        return False, [], error_key
-
-    if not isinstance(stops, list):
-        _LOGGER.warning(
-            "[config_flow] API returned unexpected stop search payload type for query '%s'", name
-        )
-        return True, [], None
-
-    # Convert API data into our format
-    result = [
-        {CONF_DEPARTURES_NAME: stop["name"], CONF_DEPARTURES_STOP_ID: stop["id"]}
-        for stop in stops
-        if stop["type"] == "stop"
-    ]
+    # Primary failed, try secondary endpoint
+    stops, secondary_error = await _try_fetch_stops_from_endpoint(
+        session, SECONDARY_TRANSPORT_REST_URL, "secondary", name
+    )
+    if secondary_error is None:
+        # Secondary succeeded (with or without results)
+        return True, stops or [], None
     
-    _LOGGER.debug("[config_flow] Found %s stops for query '%s'", len(result), name)
-    return True, result, None
+    # Both endpoints failed, return the primary error
+    _LOGGER.warning(
+        "[config_flow] Stop search failed on both endpoints (query=%s, primary_error=%s, secondary_error=%s)",
+        name,
+        error_key,
+        secondary_error,
+    )
+    return False, [], error_key
 
 
 def list_stops(stops: list[dict[str, Any]]) -> vol.Schema:

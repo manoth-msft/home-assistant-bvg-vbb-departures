@@ -73,12 +73,30 @@ Or you might see:
 
 ---
 
+### Q: What happens if the primary API fails?
+
+The integration uses a **dual-API failover system** for reliability:
+
+1. **Primary endpoint**: `v6.vbb.transport.rest` (official VBB API)
+2. **Secondary endpoint**: Custom redundant instance (for fallback)
+3. **BVG fallback**: If both primary and secondary fail, the integration falls back to BVG's API with backoff
+
+**Behavior:**
+- Both primary and secondary endpoints are tried immediately in sequence with no delay
+- If both fail, the integration applies exponential backoff (max 10 minutes) and activates BVG fallback
+- Your last successful departure data is kept visible on the dashboard during outages
+- The sensor's `health_status` attribute shows whether you're using primary, secondary, or fallback data
+
+This means you get maximum uptime even when one API is down or slow.
+
+---
+
 ### Q: What data source does this integration use?
 
 The integration uses the **VBB Public API** to fetch all transport information.
 
-- **API docs:** [https://v6.vbb.transport.rest/api.html](https://v6.vbb.transport.rest/api.html)  
-- **Rate limit:** 100 requests per minute  
+- **Primary API docs:** [https://v6.vbb.transport.rest/api.html](https://v6.vbb.transport.rest/api.html)  
+- **Rate limit:** 100 requests per minute (per endpoint)
 - **Data format:** [HAFAS](https://github.com/public-transport/hafas-client)
 
 ---
