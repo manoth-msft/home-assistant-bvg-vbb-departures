@@ -18,9 +18,9 @@
       },
       "direction_input": {
         "title": "Richtungsfilter (Optional)",
-        "description": "Möchten Sie Abfahrten nach einer bestimmten Haltestelle filtern?\n\nBeispiel: 'Zwickauer Damm' zeigt nur Züge, die dort halten.\n\nFreilassen, um diesen Schritt zu überspringen.",
+        "description": "Möchten Sie Abfahrten nach einer bestimmten Zielstation filtern? Dies ist optional.\n\n**So funktioniert's:** Geben Sie einen Stationsnamen ein, um nur Züge anzuzeigen, die dort halten. Zum Beispiel zeigt 'Zwickauer Damm' nur Züge, die zu dieser Station fahren oder dort halten.\n\n**Diesen Schritt überspringen:** Lassen Sie das Feld leer und klicken Sie weiter, um ohne Richtungsfilter fortzufahren.",
         "data": {
-          "direction_name": "Haltestellenname (freilassen zum Überspringen)"
+          "direction_name": "Zielstationsname (optional)"
         }
       },
       "direction_select": {
@@ -62,7 +62,9 @@
       "api_disconnected": "Haltestellen-Suche fehlgeschlagen: Verbindung zum API-Server unterbrochen. Versuchen Sie es in ein paar Minuten erneut.",
       "api_error": "Haltestellen-Suche fehlgeschlagen: Netzwerk- oder API-Fehler. Versuchen Sie es in ein paar Minuten erneut.",
       "api_unexpected_error": "Haltestellen-Suche fehlgeschlagen: Ein unerwarteter Fehler ist aufgetreten. Prüfen Sie die Logs.",
-      "no_stops_found": "Keine Haltestelle gefunden für '{search_query}'. Versuche einen kürzeren oder anderen Namen."
+      "no_stops_found": "Keine Haltestelle gefunden für '{search_query}'. Versuche einen kürzeren oder anderen Namen.",
+      "invalid_excluded_stops": "Ungültige ausgeschlossene Haltestellen-IDs. Bitte kommagetrennte numerische IDs verwenden (z. B. 900078201,900190001).",
+      "invalid_walking_time": "Gehzeit muss eine ganze Zahl zwischen 0 und 60 Minuten sein."
     },
     "abort": {
       "already_configured": "Diese Haltestelle ist bereits konfiguriert."

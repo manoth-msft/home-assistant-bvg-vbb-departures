@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - **Centralized timeout**: All API calls use unified 30-second timeout (replaces hard-coded 240s/30s values)
-- Imports and type hints updated across config_flow.py, sensor.py, and __init__.py
+- **Direction migration reliability improved**: Secondary endpoint success is now handled correctly, stop product data is preserved for matching, and previously failed migrations are retried on next setup
 
 ### Fixed
 - **CRITICAL**: Resolved HTTP 500 errors "direction must be an IBNR" caused by Stop-Names instead of numeric Stop-IDs. Fully mitigated through config flow + auto-migration

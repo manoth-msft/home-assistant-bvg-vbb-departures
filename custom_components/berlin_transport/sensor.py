@@ -80,10 +80,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                 vol.Required(CONF_DEPARTURES_NAME): cv.string,
                 vol.Required(CONF_DEPARTURES_STOP_ID): cv.positive_int,
                 vol.Optional(CONF_DEPARTURES_DIRECTION): cv.string,
-                vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): validate_excluded_stops,
+                vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): cv.string,
                 vol.Optional(
                     CONF_DEPARTURES_WALKING_TIME, default=1
-                ): validate_walking_time,
+                ): cv.positive_int,
                 vol.Optional(CONF_SHOW_API_LINE_COLORS, default=False): cv.boolean,
                 vol.Optional(
                     CONF_EXCLUDE_RINGBAHN_CLOCKWISE, default=False
@@ -159,13 +159,35 @@ class TransportSensor(SensorEntity):
             )
         self.config = config
         self.stop_id: int = config[CONF_DEPARTURES_STOP_ID]
-        self.excluded_stops: str | None = config.get(CONF_DEPARTURES_EXCLUDED_STOPS)
         self.sensor_name: str | None = config.get(CONF_DEPARTURES_NAME)
         # Use sensor_name for logging/display, fall back to stop_id if not configured
         self.stop_name: str = self.sensor_name or str(self.stop_id)
         self.direction: str | None = config.get(CONF_DEPARTURES_DIRECTION)
         self.duration: int = DEFAULT_DEPARTURES_DURATION
-        self.walking_time: int = config.get(CONF_DEPARTURES_WALKING_TIME) or DEFAULT_WALKING_TIME
+
+        # Validate and set excluded_stops
+        excluded_stops_raw = config.get(CONF_DEPARTURES_EXCLUDED_STOPS, "")
+        try:
+            self.excluded_stops: str | None = validate_excluded_stops(excluded_stops_raw)
+        except vol.Invalid as ex:
+            _LOGGER.error(
+                "[sensor] Invalid excluded_stops config for stop %s: %s",
+                self.stop_id,
+                ex,
+            )
+            self.excluded_stops = None
+
+        # Validate and set walking_time
+        walking_time_raw = config.get(CONF_DEPARTURES_WALKING_TIME) or DEFAULT_WALKING_TIME
+        try:
+            self.walking_time: int = validate_walking_time(int(walking_time_raw))
+        except vol.Invalid as ex:
+            _LOGGER.error(
+                "[sensor] Invalid walking_time config for stop %s: %s",
+                self.stop_id,
+                ex,
+            )
+            self.walking_time = DEFAULT_WALKING_TIME
         # we add +1 minute anyway to delete the "just gone" transport
         self.exclude_ringbahn_clockwise: bool = (
             config.get(CONF_EXCLUDE_RINGBAHN_CLOCKWISE) or False

@@ -18,9 +18,9 @@
       },
       "direction_input": {
         "title": "Direction Filter (Optional)",
-        "description": "Do you want to filter departures by a specific destination?\n\nExample: 'Zwickauer Damm' will only show trains that stop there.\n\nLeave empty to skip this step.",
+        "description": "Would you like to filter departures by a specific destination? This is optional.\n\n**How it works:** Enter a station name to only show trains that stop there. For example, entering 'Zwickauer Damm' will only display trains heading to or stopping at that station.\n\n**Skip this step:** Leave the field empty and click submit to proceed without a direction filter.",
         "data": {
-          "direction_name": "Station name (leave empty to skip)"
+          "direction_name": "Destination station name (optional)"
         }
       },
       "direction_select": {
@@ -62,7 +62,9 @@
       "api_disconnected": "Stop search failed: API server disconnected. Try again in a few minutes.",
       "api_error": "Stop search failed: Network or API error. Try again in a few minutes.",
       "api_unexpected_error": "Stop search failed: An unexpected error occurred. Check the logs.",
-      "no_stops_found": "No stops found for '{search_query}'. Try a different or shorter name."
+      "no_stops_found": "No stops found for '{search_query}'. Try a different or shorter name.",
+      "invalid_excluded_stops": "Invalid excluded stop IDs. Use comma-separated numeric IDs (e.g. 900078201,900190001).",
+      "invalid_walking_time": "Walking time must be a whole number between 0 and 60 minutes."
     },
     "abort": {
       "already_configured": "This stop is already configured."

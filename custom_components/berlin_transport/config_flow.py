@@ -53,10 +53,15 @@ CONF_FOUND_STOPS = "found_stops"
 DATA_SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_DEPARTURES_DIRECTION): cv.string,
-        vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): validate_excluded_stops,
-        vol.Optional(
-            CONF_DEPARTURES_WALKING_TIME, default=1
-        ): validate_walking_time,
+        vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): cv.string,
+        vol.Optional(CONF_DEPARTURES_WALKING_TIME, default=1): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=60,
+                step=1,
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        ),
         vol.Optional(CONF_SHOW_API_LINE_COLORS, default=False): cv.boolean,
         vol.Optional(CONF_EXCLUDE_RINGBAHN_CLOCKWISE, default=False): cv.boolean,
         vol.Optional(
@@ -365,6 +370,7 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 data_schema=vol.Schema({
                     vol.Optional("direction_name"): cv.string,
                 }),
+                description="direction_input",
                 description_placeholders={
                     "main_stop": self.data.get(CONF_DEPARTURES_NAME, "Unknown"),
                 },
@@ -532,7 +538,34 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 errors={},
             )
 
-        data = user_input
+        data = dict(user_input)
+        errors: dict[str, str] = {}
+
+        try:
+            excluded_stops = data.get(CONF_DEPARTURES_EXCLUDED_STOPS, "")
+            data[CONF_DEPARTURES_EXCLUDED_STOPS] = validate_excluded_stops(excluded_stops)
+        except vol.Invalid as ex:
+            _LOGGER.debug("[config_flow] Invalid excluded_stops value: %s", ex)
+            errors[CONF_DEPARTURES_EXCLUDED_STOPS] = "invalid_excluded_stops"
+
+        try:
+            walking_time = data.get(CONF_DEPARTURES_WALKING_TIME, 1)
+            if isinstance(walking_time, float):
+                if not walking_time.is_integer():
+                    raise vol.Invalid("walking_time must be a whole number")
+                walking_time = int(walking_time)
+            data[CONF_DEPARTURES_WALKING_TIME] = validate_walking_time(walking_time)
+        except vol.Invalid as ex:
+            _LOGGER.debug("[config_flow] Invalid walking_time value: %s", ex)
+            errors[CONF_DEPARTURES_WALKING_TIME] = "invalid_walking_time"
+
+        if errors:
+            return self.async_show_form(
+                step_id="details",
+                data_schema=DATA_SCHEMA,
+                errors=errors,
+            )
+
         data[CONF_DEPARTURES_STOP_ID] = self.data[CONF_DEPARTURES_STOP_ID]
         data[CONF_DEPARTURES_NAME] = self.data[CONF_DEPARTURES_NAME]
 
