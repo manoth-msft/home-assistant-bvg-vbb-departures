@@ -111,10 +111,10 @@ walking_valid_cases: list[tuple[int, str]] = [
 ]
 
 print("\n✓ Valid cases:")
-for test_value, desc in walking_valid_cases:
+for test_value_int, desc in walking_valid_cases:
     try:
-        result = validate_walking_time(test_value)
-        print(f"  ✓ {desc}: {test_value} min → Accepted")
+        result = validate_walking_time(test_value_int)
+        print(f"  ✓ {desc}: {test_value_int} min → Accepted")
     except vol.Invalid as e:
         print(f"  ✗ {desc}: UNEXPECTED ERROR: {e}")
 
@@ -125,9 +125,9 @@ walking_invalid_cases: list[tuple[int, str]] = [
 ]
 
 print("\n✗ Invalid cases (should be rejected):")
-for test_value, desc in walking_invalid_cases:
+for test_value_int, desc in walking_invalid_cases:
     try:
-        result = validate_walking_time(test_value)
+        result = validate_walking_time(test_value_int)
         print(f"  ✗ {desc}: SHOULD HAVE FAILED")
     except vol.Invalid as e:
         print(f"  ✓ {desc}: Correctly rejected")
