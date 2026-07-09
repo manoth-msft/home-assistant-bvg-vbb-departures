@@ -156,12 +156,24 @@ async def _try_fetch_stops_from_endpoint(  # pylint: disable=too-many-return-sta
         )
         return None, None
 
-    # Convert API data into our format
-    result = [
-        {CONF_DEPARTURES_NAME: stop["name"], CONF_DEPARTURES_STOP_ID: stop["id"]}
-        for stop in stops
-        if stop["type"] == "stop"
-    ]
+    # Convert API data into our format. Be defensive here because upstream
+    # payloads can contain unexpected objects and must not crash config flow.
+    result = []
+    for stop in stops:
+        if not isinstance(stop, dict):
+            continue
+        if stop.get("type") != "stop":
+            continue
+        stop_id = stop.get("id")
+        stop_name = stop.get("name")
+        if not stop_id or not stop_name:
+            continue
+        result.append(
+            {
+                CONF_DEPARTURES_NAME: str(stop_name),
+                CONF_DEPARTURES_STOP_ID: str(stop_id),
+            }
+        )
 
     _LOGGER.debug(
         "[config_flow] Found %s stops on %s for query '%s'",
@@ -370,7 +382,6 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 data_schema=vol.Schema({
                     vol.Optional("direction_name"): cv.string,
                 }),
-                description="direction_input",
                 description_placeholders={
                     "main_stop": self.data.get(CONF_DEPARTURES_NAME, "Unknown"),
                 },
