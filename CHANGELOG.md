@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.6] - Upcoming
+## [0.1.6] - 2026-07-09
 
 ### Added
 - **Direction filter config flow**: Search by station name instead of numeric Stop-ID; automatic validation; multi-match dropdown; optional skip

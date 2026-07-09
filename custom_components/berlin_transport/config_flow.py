@@ -108,44 +108,8 @@ async def _try_fetch_stops_from_endpoint(  # pylint: disable=too-many-return-sta
             )
             response.raise_for_status()
             stops = await response.json()
-    except aiohttp.ClientResponseError as ex:
-        error_key = "api_rate_limited" if ex.status == 429 else "api_error"
-        if error_key == "api_rate_limited":
-            retry_after = ex.headers.get("Retry-After") if ex.headers else None
-            _LOGGER.debug(
-                "[config_flow] Stop search rate limited on %s (query=%s, retry_after=%s)",
-                endpoint_name,
-                name,
-                retry_after,
-            )
-        else:
-            _LOGGER.debug(
-                "[config_flow] Stop search HTTP error on %s (query=%s, status=%s)",
-                endpoint_name,
-                name,
-                ex.status,
-            )
-        return None, error_key
-    except aiohttp.ClientConnectorError:
-        _LOGGER.debug("[config_flow] %s unreachable (query=%s)", endpoint_name, name)
-        return None, "api_unreachable"
-    except aiohttp.ServerDisconnectedError:
-        _LOGGER.debug("[config_flow] %s disconnected (query=%s)", endpoint_name, name)
-        return None, "api_disconnected"
-    except aiohttp.ClientError:
-        _LOGGER.debug("[config_flow] %s client error (query=%s)", endpoint_name, name)
-        return None, "api_error"
-    except TimeoutError:
-        _LOGGER.debug("[config_flow] %s timeout (query=%s)", endpoint_name, name)
-        return None, "api_timeout"
     except Exception as ex:  # pylint: disable=broad-exception-caught
-        _LOGGER.debug(
-            "[config_flow] Unexpected error on %s (query=%s): %s",
-            endpoint_name,
-            name,
-            ex,
-        )
-        return None, "api_unexpected_error"
+        return None, _map_stop_search_error(endpoint_name, name, ex)
 
     if not isinstance(stops, list):
         _LOGGER.debug(
@@ -155,9 +119,66 @@ async def _try_fetch_stops_from_endpoint(  # pylint: disable=too-many-return-sta
         )
         return None, None
 
-    # Convert API data into our format. Be defensive here because upstream
-    # payloads can contain unexpected objects and must not crash config flow.
-    result = []
+    result = _normalize_stop_results(stops)
+
+    _LOGGER.debug(
+        "[config_flow] Found %s stops on %s for query '%s'",
+        len(result),
+        endpoint_name,
+        name,
+    )
+    return result, None
+
+
+def _map_stop_search_error(endpoint_name: str, query: str, ex: Exception) -> str:
+    """Map endpoint fetch exceptions to config-flow error keys and log details."""
+    if isinstance(ex, aiohttp.ClientResponseError):
+        error_key = "api_rate_limited" if ex.status == 429 else "api_error"
+        if error_key == "api_rate_limited":
+            retry_after = ex.headers.get("Retry-After") if ex.headers else None
+            _LOGGER.debug(
+                "[config_flow] Stop search rate limited on %s (query=%s, retry_after=%s)",
+                endpoint_name,
+                query,
+                retry_after,
+            )
+        else:
+            _LOGGER.debug(
+                "[config_flow] Stop search HTTP error on %s (query=%s, status=%s)",
+                endpoint_name,
+                query,
+                ex.status,
+            )
+        return error_key
+
+    if isinstance(ex, aiohttp.ClientConnectorError):
+        _LOGGER.debug("[config_flow] %s unreachable (query=%s)", endpoint_name, query)
+        return "api_unreachable"
+
+    if isinstance(ex, aiohttp.ServerDisconnectedError):
+        _LOGGER.debug("[config_flow] %s disconnected (query=%s)", endpoint_name, query)
+        return "api_disconnected"
+
+    if isinstance(ex, aiohttp.ClientError):
+        _LOGGER.debug("[config_flow] %s client error (query=%s)", endpoint_name, query)
+        return "api_error"
+
+    if isinstance(ex, TimeoutError):
+        _LOGGER.debug("[config_flow] %s timeout (query=%s)", endpoint_name, query)
+        return "api_timeout"
+
+    _LOGGER.debug(
+        "[config_flow] Unexpected error on %s (query=%s): %s",
+        endpoint_name,
+        query,
+        ex,
+    )
+    return "api_unexpected_error"
+
+
+def _normalize_stop_results(stops: list[Any]) -> list[dict[str, str]]:
+    """Normalize stop search payload into the config-flow stop format."""
+    result: list[dict[str, str]] = []
     for stop in stops:
         if not isinstance(stop, dict):
             continue
@@ -173,14 +194,7 @@ async def _try_fetch_stops_from_endpoint(  # pylint: disable=too-many-return-sta
                 CONF_DEPARTURES_STOP_ID: str(stop_id),
             }
         )
-
-    _LOGGER.debug(
-        "[config_flow] Found %s stops on %s for query '%s'",
-        len(result),
-        endpoint_name,
-        name,
-    )
-    return result, None
+    return result
 
 
 async def get_stop_id(

@@ -70,9 +70,8 @@ async def _migrate_direction_field(  # pylint: disable=too-many-locals
         )
 
     # Not needed: No direction set or already a Stop-ID
-    if not direction or (isinstance(direction, str) and direction.isdigit()):
-        data = {**entry.data, DIRECTION_MIGRATION_STATE: "not_needed"}
-        hass.config_entries.async_update_entry(entry, data=data)
+    if _is_direction_id_already_valid(direction):
+        _set_migration_state(hass, entry, "not_needed")
         _LOGGER.debug(
             "[migration] No direction migration needed for stop '%s'",
             entry.data.get("name", "unknown"),
@@ -103,42 +102,15 @@ async def _migrate_direction_field(  # pylint: disable=too-many-locals
             hass.config_entries.async_update_entry(entry, data=data)
             return True
 
-        # Build list of product types from config
-        config_products = []
-        product_map = {
-            CONF_TYPE_SUBURBAN: "suburban",
-            CONF_TYPE_SUBWAY: "subway",
-            CONF_TYPE_TRAM: "tram",
-            CONF_TYPE_BUS: "bus",
-            CONF_TYPE_FERRY: "ferry",
-            CONF_TYPE_EXPRESS: "express",
-            CONF_TYPE_REGIONAL: "regional",
-        }
+        config_products = _get_config_products(entry)
+        direction_id = _select_direction_id(stops, config_products)
 
-        for conf_type, product_name in product_map.items():
-            if entry.data.get(conf_type, False):
-                config_products.append(product_name)
-
-        # If no products configured, use all
-        if not config_products:
-            config_products = list(product_map.values())
-
-        # Find first stop with matching product type
-        direction_id = None
-        for stop in stops:
-            stop_products = stop.get("products", {})
-            for product in config_products:
-                if stop_products.get(product, False):
-                    direction_id = stop["id"]
-                    _LOGGER.debug(
-                        "[migration] Found direction Stop-ID: %s for text '%s' (product: %s)",
-                        direction_id,
-                        direction,
-                        product,
-                    )
-                    break
-            if direction_id:
-                break
+        if direction_id:
+            _LOGGER.debug(
+                "[migration] Found direction Stop-ID: %s for text '%s'",
+                direction_id,
+                direction,
+            )
 
         if not direction_id:
             # No stop found with matching products
@@ -147,8 +119,7 @@ async def _migrate_direction_field(  # pylint: disable=too-many-locals
                 direction,
                 config_products,
             )
-            data = {**entry.data, DIRECTION_MIGRATION_STATE: "failed"}
-            hass.config_entries.async_update_entry(entry, data=data)
+            _set_migration_state(hass, entry, "failed")
             return True
 
         # Update entry with Stop-ID
@@ -202,3 +173,46 @@ def setup(
     hass: HomeAssistant, config: ConfigType  # pylint: disable=unused-argument
 ) -> bool:
     return True
+
+
+def _is_direction_id_already_valid(direction: Any) -> bool:
+    """Return True if migration can be skipped for the direction value."""
+    return not direction or (isinstance(direction, str) and direction.isdigit())
+
+
+def _set_migration_state(hass: HomeAssistant, entry: ConfigEntry, state: str) -> None:
+    """Persist migration state in config entry data."""
+    data = {**entry.data, DIRECTION_MIGRATION_STATE: state}
+    hass.config_entries.async_update_entry(entry, data=data)
+
+
+def _get_config_products(entry: ConfigEntry) -> list[str]:
+    """Return enabled product names from entry data, or all if none configured."""
+    product_map = {
+        CONF_TYPE_SUBURBAN: "suburban",
+        CONF_TYPE_SUBWAY: "subway",
+        CONF_TYPE_TRAM: "tram",
+        CONF_TYPE_BUS: "bus",
+        CONF_TYPE_FERRY: "ferry",
+        CONF_TYPE_EXPRESS: "express",
+        CONF_TYPE_REGIONAL: "regional",
+    }
+
+    config_products = [
+        product_name
+        for conf_type, product_name in product_map.items()
+        if entry.data.get(conf_type, False)
+    ]
+    return config_products or list(product_map.values())
+
+
+def _select_direction_id(stops: list[dict[str, Any]], config_products: list[str]) -> str | None:
+    """Return first matching direction stop-id for configured products."""
+    for stop in stops:
+        stop_id = stop.get("id")
+        stop_products = stop.get("products", {})
+        if not stop_id or not isinstance(stop_products, dict):
+            continue
+        if any(stop_products.get(product, False) for product in config_products):
+            return str(stop_id)
+    return None
