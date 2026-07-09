@@ -1103,7 +1103,10 @@ class TransportSensor(SensorEntity):
 
             # Default to all if none configured
             if not config_products:
-                config_products = ["suburban", "subway", "tram", "bus", "ferry", "express", "regional"]
+                config_products = [
+                    "suburban", "subway", "tram", "bus",
+                    "ferry", "express", "regional"
+                ]
 
             # Find first stop with matching product
             for stop in stops:

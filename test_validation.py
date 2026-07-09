@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test validation functions for berlin_transport."""
+# pylint: disable=redefined-outer-name
 
 import voluptuous as vol
 
@@ -64,7 +65,7 @@ print("=" * 70)
 print("\n1. Testing validate_excluded_stops:")
 print("-" * 70)
 
-valid_tests = [
+valid_test_cases = [
     ("", "Empty (no exclusions)"),
     ("900078201", "Single Stop-ID"),
     ("900078201,900190001", "Multiple stops"),
@@ -73,10 +74,10 @@ valid_tests = [
 ]
 
 print("\n✓ Valid cases:")
-for value, desc in valid_tests:
+for test_value, desc in valid_test_cases:
     try:
-        result = validate_excluded_stops(value)
-        print(f"  ✓ {desc}: '{value}' → Accepted")
+        result = validate_excluded_stops(test_value)
+        print(f"  ✓ {desc}: '{test_value}' → Accepted") 
     except vol.Invalid as e:
         print(f"  ✗ {desc}: UNEXPECTED ERROR: {e}")
 

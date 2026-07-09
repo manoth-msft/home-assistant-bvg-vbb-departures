@@ -34,10 +34,6 @@
 **File:** `const.py` + `sensor.py`  
 **Problem:** During BVG fallback, polling every 120s may be too slow
 
-#### 2.2.3 Timeout Redundancy
-**File:** `const.py:23`  
-**Problem:** API_REQUEST_TIMEOUT defined but not used
-
 ---
 
 ### 2.3 MEDIUM PRIORITY ISSUES ⚡
@@ -149,10 +145,11 @@ All 7 Stops             | Various  | ~100| ✅ All PASS
 - **Why:** Long excluded_stops could overflow entity ID
 - **Status:** COMPLETED - `validate_excluded_stops()` and `validate_walking_time()` in util.py
 
-**C. Centralize Timeout Constant**
+**C. Centralize Timeout Constant** ✅ (v0.1.6)
 - **Effort:** 15 min
 - **Impact:** Code clarity
 - **Why:** API_REQUEST_TIMEOUT defined but not used
+- **Status:** COMPLETED - All API calls (locations, departures, trips validation) now use centralized 30s timeout
 
 ---
 
@@ -184,6 +181,7 @@ All 7 Stops             | Various  | ~100| ✅ All PASS
 - [x] Backward Compatible ✅
 - [x] CHANGELOG Updated ✅
 - [x] Config Input Validation (v0.1.6) ✅
+- [x] Timeout Centralization (v0.1.6) ✅
 - [ ] Integration Tests (external)
 - [ ] User Acceptance Testing (pending)
 
@@ -196,6 +194,7 @@ All 7 Stops             | Various  | ~100| ✅ All PASS
 **Completed Features:**
 - ✅ Direction filter config flow with auto-migration and fallback resolution (Phase 1 + Phase 2)
 - ✅ Config input validation (excluded_stops length, walking_time bounds)
+- ✅ Timeout centralization (all API calls use 30s constant)
 - ✅ Linting: 10.00/10 (Pylint), PEP8 compliant (Flake8)
 
 **v0.1.5 Strengths:**
@@ -207,10 +206,9 @@ All 7 Stops             | Various  | ~100| ✅ All PASS
 
 **Remaining v0.1.6+ Improvements:**
 1. BVG Deduplication (prevents duplicate departures)
-2. ✅ Input Validation (COMPLETED)
-3. Performance Metrics (API health dashboard)
-4. Faster Polling During BVG Fallback (configurable interval)
-5. Cache Thread-Safety (atomic operations)
+2. Performance Metrics (API health dashboard)
+3. Faster Polling During BVG Fallback (configurable interval)
+4. Cache Thread-Safety (atomic operations)
 
 **Next Review:** Post v0.1.6 release
 
