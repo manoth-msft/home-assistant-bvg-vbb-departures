@@ -5,7 +5,7 @@
 ### Q: How do I find my stop_id?
 
 The primary stop you select will be resolved automatically by the integration.  
-You only need to look up `stop_id` values if you want to use advanced configuration options such as **Direction** or **Excluded stops**.
+You only need to look up `stop_id` values for advanced options such as **Excluded stops**.
 
 To find a `stop_id`, you can query the VBB API. Open the link below in a new window and replace `alexanderplatz` with the name of your stop. Partial matches are supported.
 
@@ -190,7 +190,9 @@ Yes. You can enable or disable specific transport types (buses, trams, trains, f
 
 ### Q: Does the integration support intermediate stops in filters?
 
-No. Direction filters work only for **final destinations** (endpoints). If you want to filter by an intermediate stop, you would need to use that stop's `stop_id`, but this will show all departures to that location (not just passing through).
+Yes. The direction filter supports both **intermediate stops** and **final destinations** (terminus stations).
+
+You can enter a station name in the direction step, select the matching stop, and the integration resolves it to the correct Stop-ID automatically.
 
 ---
 

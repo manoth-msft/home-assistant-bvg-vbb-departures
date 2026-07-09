@@ -6,11 +6,11 @@ This page explains all configuration options for the BVG/VBB Departures integrat
 
 ### 📍 Direction (v0.1.6+)
 
-Filter departures to show only trains heading to a specific destination.
+Filter departures to show only services heading toward a specific stop.
 
-**What it does:** Instead of showing all departures from your stop, you'll only see trains that go to (or pass through) your specified destination.
+**What it does:** Instead of showing all departures from your stop, you'll only see services that go to (or pass through) your specified stop.
 
-**Example:** If you select "S Treptower Park" but only want to see trains going to "S+U Neukölln", you can filter by the S+U Neukölln direction.
+**Example:** If you select "S Treptower Park" but only want to see services going to "S+U Neukölln", you can filter by the S+U Neukölln direction.
 
 **How to use (v0.1.6+):**
 - During initial setup or when editing the integration, you'll be prompted for an optional direction filter
@@ -18,10 +18,11 @@ Filter departures to show only trains heading to a specific destination.
 - If multiple stations match, you'll see a dropdown to select the correct one
 - **No need to know Stop-IDs anymore!** The integration handles the lookup automatically
 - The integration validates that the station exists on your departures route
+- You can use both intermediate stops and terminus stations
 
 **When to use this:** 
 - You're at a station with multiple lines or directions
-- You only care about trains heading in one direction
+- You only care about services heading in one direction
 
 **What changed from v0.1.5?**
 - **Old (v0.1.5)**: Required manual lookup of numeric Stop-IDs and direct YAML/text configuration
@@ -186,7 +187,7 @@ You take the S1 from S Treptower Park to S+U Neukölln every weekday.
 
 **Configuration:**
 - Stop: `S Treptower Park`
-- Direction: `900078201` (S+U Neukölln)
+- Direction: `S+U Neukölln` (resolved automatically to Stop-ID)
 - Walking time: `10` minutes
 - Transport types: Only **Suburban** enabled
 - Show delay: enabled
