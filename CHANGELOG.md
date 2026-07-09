@@ -22,6 +22,17 @@ All notable changes to this project will be documented in this file.
   - Uses the same smart product matching as auto-migration
   - Logs conversion attempts for debugging
 
+- **Config input validation** (v0.1.6): New validation for user input to prevent configuration errors:
+  - excluded_stops: Validates comma-separated Stop-IDs, checks length limit (max 255 chars)
+  - walking_time: Validates numeric range (0-60 minutes)
+  - Prevents Entity ID overflow and unrealistic configuration values
+
+### Changed
+- **Centralized timeout configuration** (v0.1.6): All API request timeouts now use a single configurable constant (30 seconds)
+  - Replaces hard-coded values in config_flow.py and util.py
+  - Improves code clarity and maintainability
+  - All APIs (locations search, departures, trips validation) use consistent timeout
+
 ### Fixed
 - **CRITICAL**: Resolved HTTP 500 errors caused by users entering Stop-Names instead of numeric Stop-IDs in the direction field (25 errors reported from 2026-07-09). Root cause was the API rejecting non-numeric direction parameters with "direction must be an IBNR". Now fully mitigated through config flow + auto-migration.
 

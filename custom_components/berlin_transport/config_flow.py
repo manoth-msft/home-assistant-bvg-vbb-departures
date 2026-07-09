@@ -20,6 +20,7 @@ from .const import (
     PRIM_API_ENDPOINT,
     SEC_API_ENDPOINT,
     API_MAX_RESULTS,
+    API_REQUEST_TIMEOUT,
     PRIM_API_ENABLED,
     SEC_API_ENABLED,
     CONF_DEPARTURES_STOP_ID,
@@ -93,7 +94,7 @@ async def _try_fetch_stops_from_endpoint(  # pylint: disable=too-many-return-sta
         - error_key: Error key if failed, None if successful
     """
     try:
-        async with async_timeout.timeout(240):
+        async with async_timeout.timeout(API_REQUEST_TIMEOUT):
             response = await session.get(
                 url=f"{endpoint_url}/locations",
                 params={
@@ -480,7 +481,7 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 "stopovers": "true",
             }
 
-            async with async_timeout.timeout(30):
+            async with async_timeout.timeout(API_REQUEST_TIMEOUT):
                 response = await session.get(trips_url, params=params)
                 response.raise_for_status()
                 trips = await response.json()

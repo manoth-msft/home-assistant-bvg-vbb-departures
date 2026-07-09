@@ -147,6 +147,17 @@ This is usually sufficient, but adding dozens of stops is not recommended to avo
 
 ---
 
+### Q: How long does the integration wait for API responses?
+
+The integration uses a **30-second timeout** for all API requests (stop search, departure fetching, validation). This timeout applies to:
+- Location/stop search requests (when setting up direction filters)
+- Departure fetching from VBB/HAFAS API
+- Trip validation requests (verifying stops exist on routes)
+
+If an API request takes longer than 30 seconds, it fails gracefully and the integration falls back to its retry strategy (adaptive backoff, last known departures remain visible).
+
+---
+
 ### Q: What entities are created by the integration?
 
 For each stop, the integration creates **one entity**. It stores the upcoming departures in `attributes.departures`. 

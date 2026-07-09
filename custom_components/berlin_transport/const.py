@@ -26,7 +26,7 @@ API_MAX_RESULTS = 20
 DEFAULT_DEPARTURES_DURATION = 60
 
 # API Request timeouts (seconds)
-API_REQUEST_TIMEOUT = 240  # 4 minutes
+API_REQUEST_TIMEOUT = 30  # All API requests (locations, departures, trips validation)
 
 # Backoff configuration
 BACKOFF_BASE = 2  # Exponential backoff base (2^n)

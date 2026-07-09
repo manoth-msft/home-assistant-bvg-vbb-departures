@@ -13,6 +13,7 @@ import homeassistant.helpers.config_validation as cv
 from .const import (
     PRIM_API_ENDPOINT,
     SEC_API_ENDPOINT,
+    API_REQUEST_TIMEOUT,
     PRIM_API_ENABLED,
     SEC_API_ENABLED,
     CONF_TYPE_SUBURBAN,
@@ -142,7 +143,7 @@ async def get_direction_stops(
     # Try primary endpoint first
     if PRIM_API_ENABLED:
         try:
-            async with async_timeout.timeout(240):
+            async with async_timeout.timeout(API_REQUEST_TIMEOUT):
                 response = await session.get(
                     url=f"{PRIM_API_ENDPOINT}/locations",
                     params={
@@ -199,7 +200,7 @@ async def get_direction_stops(
     # Primary failed/disabled, try secondary
     if SEC_API_ENABLED:
         try:
-            async with async_timeout.timeout(240):
+            async with async_timeout.timeout(API_REQUEST_TIMEOUT):
                 response = await session.get(
                     url=f"{SEC_API_ENDPOINT}/locations",
                     params={
