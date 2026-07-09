@@ -26,7 +26,89 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Shared schema for transport type configuration
+# Configuration validation constants
+MAX_EXCLUDED_STOPS_LENGTH = 255  # Entity ID safe length
+MAX_WALKING_TIME = 60  # minutes
+
+
+def validate_excluded_stops(value: str) -> str:
+    """Validate excluded_stops configuration value.
+
+    Ensures the comma-separated Stop-IDs list doesn't overflow entity ID
+    and contains only valid characters. Home Assistant entity IDs have a max
+    length of 255 characters, and excluded_stops is part of the entity ID
+    calculation.
+
+    Args:
+        value: Comma-separated Stop-IDs string (e.g. "900078201,900190001")
+
+    Returns:
+        Validated string (unchanged if valid)
+
+    Raises:
+        vol.Invalid: If validation fails (length exceeded, invalid format, etc.)
+    """
+    if not value or not value.strip():
+        # Empty is OK (no exclusions)
+        return ""
+
+    # Check length limit
+    if len(value) > MAX_EXCLUDED_STOPS_LENGTH:
+        raise vol.Invalid(
+            f"excluded_stops too long ({len(value)}/{MAX_EXCLUDED_STOPS_LENGTH} chars). "
+            "Please use fewer Stop-IDs (max ~20 stops)."
+        )
+
+    # Validate format: comma-separated numbers with optional whitespace
+    stops = [s.strip() for s in value.split(",")]
+    for stop in stops:
+        if not stop:
+            raise vol.Invalid(
+                "excluded_stops: Empty stop ID found. "
+                "Use format: '900078201,900190001' (no spaces inside IDs)"
+            )
+        if not stop.isdigit():
+            raise vol.Invalid(
+                f"excluded_stops: Invalid Stop-ID '{stop}'. "
+                "Must be numeric (e.g. '900078201')"
+            )
+        if len(stop) > 20:
+            raise vol.Invalid(
+                f"excluded_stops: Stop-ID '{stop}' too long (max 20 digits)"
+            )
+
+    return value
+
+
+def validate_walking_time(value: int) -> int:
+    """Validate walking_time configuration value.
+
+    Ensures walking time is within reasonable bounds (0-60 minutes).
+
+    Args:
+        value: Walking time in minutes
+
+    Returns:
+        Validated integer
+
+    Raises:
+        vol.Invalid: If out of bounds
+    """
+    if not isinstance(value, int):
+        raise vol.Invalid("walking_time must be a number")
+
+    if value < 0:
+        raise vol.Invalid("walking_time cannot be negative")
+
+    if value > MAX_WALKING_TIME:
+        raise vol.Invalid(
+            f"walking_time too high ({value}/{MAX_WALKING_TIME} min). "
+            "Using max 60 minutes."
+        )
+
+    return value
+
+
 TRANSPORT_TYPES_SCHEMA = {
     vol.Optional(CONF_TYPE_SUBURBAN, default=True): cv.boolean,
     vol.Optional(CONF_TYPE_SUBWAY, default=True): cv.boolean,

@@ -37,7 +37,12 @@ from .const import (
     DIRECTION_DEBUG_MODE_ENABLED,
 )
 
-from .util import TRANSPORT_TYPES_SCHEMA, get_direction_stops
+from .util import (
+    TRANSPORT_TYPES_SCHEMA,
+    get_direction_stops,
+    validate_excluded_stops,
+    validate_walking_time,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,11 +52,15 @@ CONF_FOUND_STOPS = "found_stops"
 DATA_SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_DEPARTURES_DIRECTION): cv.string,
-        vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): cv.string,
-        vol.Optional(CONF_DEPARTURES_WALKING_TIME, default=1): cv.positive_int,
+        vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): validate_excluded_stops,
+        vol.Optional(
+            CONF_DEPARTURES_WALKING_TIME, default=1
+        ): validate_walking_time,
         vol.Optional(CONF_SHOW_API_LINE_COLORS, default=False): cv.boolean,
         vol.Optional(CONF_EXCLUDE_RINGBAHN_CLOCKWISE, default=False): cv.boolean,
-        vol.Optional(CONF_EXCLUDE_RINGBAHN_COUNTERCLOCKWISE, default=False): cv.boolean,
+        vol.Optional(
+            CONF_EXCLUDE_RINGBAHN_COUNTERCLOCKWISE, default=False
+        ): cv.boolean,
         vol.Optional(CONF_REMOVE_BERLIN_SUFFIX, default=False): cv.boolean,
         **TRANSPORT_TYPES_SCHEMA,
     }

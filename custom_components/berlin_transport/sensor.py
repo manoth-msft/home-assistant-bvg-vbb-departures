@@ -65,7 +65,12 @@ from .const import (  # pylint: disable=unused-import
 )
 from .departure import Departure
 from .bvg_api import fetch_and_parse_bvg_departures
-from .util import get_direction_stops, TRANSPORT_TYPES_SCHEMA
+from .util import (
+    get_direction_stops,
+    TRANSPORT_TYPES_SCHEMA,
+    validate_excluded_stops,
+    validate_walking_time,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,8 +81,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                 vol.Required(CONF_DEPARTURES_NAME): cv.string,
                 vol.Required(CONF_DEPARTURES_STOP_ID): cv.positive_int,
                 vol.Optional(CONF_DEPARTURES_DIRECTION): cv.string,
-                vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): cv.string,
-                vol.Optional(CONF_DEPARTURES_WALKING_TIME, default=1): cv.positive_int,
+                vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): validate_excluded_stops,
+                vol.Optional(
+                    CONF_DEPARTURES_WALKING_TIME, default=1
+                ): validate_walking_time,
                 vol.Optional(CONF_SHOW_API_LINE_COLORS, default=False): cv.boolean,
                 vol.Optional(
                     CONF_EXCLUDE_RINGBAHN_CLOCKWISE, default=False
