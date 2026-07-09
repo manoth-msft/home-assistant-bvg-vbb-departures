@@ -33,13 +33,11 @@ from .const import (
     CONF_EXCLUDE_RINGBAHN_COUNTERCLOCKWISE,
     CONF_REMOVE_BERLIN_SUFFIX,
     DOMAIN,
-    DIRECTION_ID_MIGRATION_ENABLED,
-    DIRECTION_MIGRATION_STATE,
     DIRECTION_DEBUG_KEEP_AS_TEXT,
     DIRECTION_DEBUG_MODE_ENABLED,
 )
 
-from .sensor import TRANSPORT_TYPES_SCHEMA
+from .util import TRANSPORT_TYPES_SCHEMA, get_direction_stops
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -239,118 +237,6 @@ def list_stops(stops: list[dict[str, Any]]) -> vol.Schema:
     )
 
     return schema
-
-
-async def get_direction_stops(
-    session: aiohttp.ClientSession, name: str, results: int = 5
-) -> tuple[bool, list[dict[str, Any]], str | None]:
-    """Search for direction stops with customizable result limit.
-
-    Like get_stop_id but with adjustable results parameter for direction filtering.
-    Returns stops with full product information for later filtering.
-
-    Args:
-        session: aiohttp ClientSession
-        name: Stop name to search for
-        results: Number of results to return (default 5)
-
-    Returns:
-        Tuple of (success, stops, error_key)
-    """
-    error_key: str | None = None
-    primary_or_secondary_error: str | None = "api_error"
-
-    # Try primary endpoint first
-    if PRIM_API_ENABLED:
-        try:
-            async with async_timeout.timeout(240):
-                response = await session.get(
-                    url=f"{PRIM_API_ENDPOINT}/locations",
-                    params={
-                        "query": name,
-                        "results": results,
-                    },
-                )
-                response.raise_for_status()
-                stops = await response.json()
-        except aiohttp.ClientResponseError as ex:
-            error_key = "api_rate_limited" if ex.status == 429 else "api_error"
-            _LOGGER.debug(
-                "[config_flow] Direction stop search failed on primary (query=%s, status=%s)",
-                name,
-                ex.status,
-            )
-        except (aiohttp.ClientError, TimeoutError) as ex:
-            error_key = "api_error"
-            _LOGGER.debug(
-                "[config_flow] Direction stop search error on primary (query=%s): %s",
-                name,
-                ex,
-            )
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            error_key = "api_error"
-            _LOGGER.debug(
-                "[config_flow] Unexpected error in direction search on primary: %s", ex
-            )
-        else:
-            # Primary succeeded
-            if isinstance(stops, list):
-                result = [
-                    {"name": stop["name"], "id": stop["id"]}
-                    for stop in stops
-                    if stop["type"] == "stop"
-                ]
-                _LOGGER.debug(
-                    "[config_flow] Found %s direction stops on primary for query '%s'",
-                    len(result),
-                    name,
-                )
-                return True, result, None
-            else:
-                error_key = "api_error"
-
-    # Primary failed/disabled, try secondary
-    if SEC_API_ENABLED:
-        try:
-            async with async_timeout.timeout(240):
-                response = await session.get(
-                    url=f"{SEC_API_ENDPOINT}/locations",
-                    params={
-                        "query": name,
-                        "results": results,
-                    },
-                )
-                response.raise_for_status()
-                stops = await response.json()
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            _LOGGER.debug(
-                "[config_flow] Direction stop search failed on secondary (query=%s): %s",
-                name,
-                ex,
-            )
-            primary_or_secondary_error = error_key or "api_error"
-        else:
-            # Secondary succeeded
-            if isinstance(stops, list):
-                result = [
-                    {"name": stop["name"], "id": stop["id"]}
-                    for stop in stops
-                    if stop["type"] == "stop"
-                ]
-                _LOGGER.debug(
-                    "[config_flow] Found %s direction stops on secondary for query '%s'",
-                    len(result),
-                    name,
-                )
-                return True, result, None
-            else:
-                primary_or_secondary_error = "api_error"
-
-    _LOGGER.warning(
-        "[config_flow] Direction stop search failed on both endpoints (query=%s)",
-        name,
-    )
-    return False, [], primary_or_secondary_error
 
 
 class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):

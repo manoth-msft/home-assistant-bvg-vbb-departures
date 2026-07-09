@@ -32,14 +32,16 @@ from .const import (
     DIRECTION_MIGRATION_STATE,
     DIRECTION_ID_MIGRATION_ENABLED,
 )
-from .config_flow import get_direction_stops
+from .util import get_direction_stops
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.SENSOR]
 
 
-async def _migrate_direction_field(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def _migrate_direction_field(  # pylint: disable=too-many-locals
+    hass: HomeAssistant, entry: ConfigEntry
+) -> bool:
     """Migrate direction field from Stop-Name text to numeric Stop-ID.
 
     Handles configs created before v0.1.6 where users might have entered stop names

@@ -65,19 +65,9 @@ from .const import (  # pylint: disable=unused-import
 )
 from .departure import Departure
 from .bvg_api import fetch_and_parse_bvg_departures
-from .config_flow import get_direction_stops
+from .util import get_direction_stops, TRANSPORT_TYPES_SCHEMA
 
 _LOGGER = logging.getLogger(__name__)
-
-TRANSPORT_TYPES_SCHEMA = {
-    vol.Optional(CONF_TYPE_SUBURBAN, default=True): cv.boolean,
-    vol.Optional(CONF_TYPE_SUBWAY, default=True): cv.boolean,
-    vol.Optional(CONF_TYPE_TRAM, default=True): cv.boolean,
-    vol.Optional(CONF_TYPE_BUS, default=True): cv.boolean,
-    vol.Optional(CONF_TYPE_FERRY, default=True): cv.boolean,
-    vol.Optional(CONF_TYPE_EXPRESS, default=True): cv.boolean,
-    vol.Optional(CONF_TYPE_REGIONAL, default=True): cv.boolean,
-}
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -1042,7 +1032,9 @@ class TransportSensor(SensorEntity):
         )
         return None
 
-    async def _resolve_direction_to_stopid(self, direction: str | None) -> str | None:
+    async def _resolve_direction_to_stopid(  # pylint: disable=too-many-branches
+        self, direction: str | None
+    ) -> str | None:
         """Convert direction from Stop-Name text to numeric Stop-ID if needed.
 
         This is a fallback for old configs that have stop names instead of IDs

@@ -38,9 +38,13 @@ SEC_API_ENABLED = True  # Enable secondary/redundant API endpoint
 BVG_FALLBACK_ENABLED = True  # Enable BVG API as fallback when transport.rest fails
 
 # Direction Stop-ID migration (v0.1.6)
-DIRECTION_ID_MIGRATION_ENABLED = True  # Toggle für Migration von Stop-Namen zu Stop-IDs
-DIRECTION_DEBUG_KEEP_AS_TEXT = []  # DEBUG-MODE: Liste von Stop-Namen die als TEXT gespeichert werden (leer in Produktion)
-DIRECTION_DEBUG_MODE_ENABLED = len(DIRECTION_DEBUG_KEEP_AS_TEXT) > 0  # Automatischer Flag wenn Debug-Liste nicht leer
+# Toggle für Migration von Stop-Namen zu Stop-IDs
+DIRECTION_ID_MIGRATION_ENABLED = True
+# DEBUG-MODE: Liste von Stop-Namen die als TEXT gespeichert werden
+# (leer in Produktion)
+DIRECTION_DEBUG_KEEP_AS_TEXT = []
+# Automatischer Flag wenn Debug-Liste nicht leer
+DIRECTION_DEBUG_MODE_ENABLED = len(DIRECTION_DEBUG_KEEP_AS_TEXT) > 0
 
 # Cache management
 CACHE_TTL_SECONDS = 7200  # 2 hours: Time-to-live for cached request variants
