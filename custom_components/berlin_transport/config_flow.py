@@ -52,7 +52,6 @@ CONF_FOUND_STOPS = "found_stops"
 
 DATA_SCHEMA = vol.Schema(
     {
-        vol.Optional(CONF_DEPARTURES_DIRECTION): cv.string,
         vol.Optional(CONF_DEPARTURES_EXCLUDED_STOPS): cv.string,
         vol.Optional(CONF_DEPARTURES_WALKING_TIME, default=1): selector.NumberSelector(
             selector.NumberSelectorConfig(

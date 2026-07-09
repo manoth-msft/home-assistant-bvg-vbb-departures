@@ -18,9 +18,9 @@
       },
       "direction_input": {
         "title": "Direction Filter (Optional)",
-        "description": "Would you like to filter departures by a specific destination? This is optional.\n\n**How it works:** Enter a station name to only show trains that stop there. For example, entering 'Zwickauer Damm' will only display trains heading to or stopping at that station.\n\n**Skip this step:** Leave the field empty and click submit to proceed without a direction filter.",
+        "description": "Would you like to filter departures by a specific stop? This is optional.\n\n**How it works:** Enter a station name to only show services that stop there. You can use both intermediate stops and terminus stations.\n\n**Example:** Entering 'Zwickauer Damm' will only show services that stop there.\n\n**Skip this step:** Leave the field empty and continue to proceed without a direction filter.",
         "data": {
-          "direction_name": "Destination station name (optional)"
+          "direction_name": "Direction stop (optional)"
         }
       },
       "direction_select": {
@@ -38,7 +38,6 @@
         "description": "Add further details",
         "data": {
           "walking_time": "Walking time in minutes",
-          "direction": "Filter departures by direction",
           "excluded_stops": "Exclude nearby stops with IDs",
           "exclude_ringbahn_clockwise": "Do not show Ringbahn ⟳ (clockwise)",
           "exclude_ringbahn_counterclockwise": "Do not show Ringbahn ⟲ (counter clockwise)",

@@ -18,9 +18,9 @@
       },
       "direction_input": {
         "title": "Richtungsfilter (Optional)",
-        "description": "Möchten Sie Abfahrten nach einer bestimmten Zielstation filtern? Dies ist optional.\n\n**So funktioniert's:** Geben Sie einen Stationsnamen ein, um nur Züge anzuzeigen, die dort halten. Zum Beispiel zeigt 'Zwickauer Damm' nur Züge, die zu dieser Station fahren oder dort halten.\n\n**Diesen Schritt überspringen:** Lassen Sie das Feld leer und klicken Sie weiter, um ohne Richtungsfilter fortzufahren.",
+        "description": "Möchten Sie Abfahrten nach einer bestimmten Haltestelle filtern? Dies ist optional.\n\n**So funktioniert's:** Geben Sie einen Stationsnamen ein, um nur Verbindungen anzuzeigen, die dort halten. Sie können dabei sowohl Zwischenhalte als auch Endstationen verwenden.\n\n**Beispiel:** Mit 'Zwickauer Damm' sehen Sie nur Verbindungen, die dort halten.\n\n**Überspringen:** Feld leer lassen und weiterklicken, um ohne Richtungsfilter fortzufahren.",
         "data": {
-          "direction_name": "Zielstationsname (optional)"
+          "direction_name": "Richtungshaltestelle (optional)"
         }
       },
       "direction_select": {
@@ -38,7 +38,6 @@
         "description": "Zusätzliche Einstellungen",
         "data": {
           "walking_time": "Gehminuten zur Haltestelle",
-          "direction": "Nur Abfahrten zu diesen (End-)Haltestellen",
           "excluded_stops": "Diese nahegelegenen Haltestellen ignorieren",
           "exclude_ringbahn_clockwise": "Ringbahn ⟳ (im Uhrzeigersinn) ausblenden",
           "exclude_ringbahn_counterclockwise": "Ringbahn ⟲ (im Gegen-Uhrzeigersinn) ausblenden",
