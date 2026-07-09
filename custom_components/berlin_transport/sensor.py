@@ -66,7 +66,6 @@ from .const import (  # pylint: disable=unused-import
 from .departure import Departure
 from .bvg_api import fetch_and_parse_bvg_departures
 from .util import (
-    get_direction_stops,
     TRANSPORT_TYPES_SCHEMA,
     validate_excluded_stops,
     validate_walking_time,
@@ -1039,120 +1038,18 @@ class TransportSensor(SensorEntity):
         )
         return None
 
-    async def _resolve_direction_to_stopid(  # pylint: disable=too-many-branches
-        self, direction: str | None
-    ) -> str | None:
-        """Convert direction from Stop-Name text to numeric Stop-ID if needed.
-
-        This is a fallback for old configs that have stop names instead of IDs
-        in the direction field (v0.1.5 and earlier). It attempts to look up the
-        Stop-Name and use the first matching Stop-ID with a product type matching
-        the sensor's configuration.
-
-        Args:
-            direction: Direction filter (either numeric Stop-ID or Stop-Name text)
-
-        Returns:
-            Resolved Stop-ID (string of digits), or original direction if already numeric,
-            or None if direction is None or conversion fails.
-        """
-        if not direction:
-            return direction
-
-        # Already a numeric Stop-ID
-        if direction.isdigit():
-            return direction
-
-        # Text Stop-Name → try to convert
-        _LOGGER.debug(
-            "[fallback] Direction '%s' is text, attempting to convert to Stop-ID",
-            direction,
-        )
-
-        try:
-            # Search for direction stops
-            success, stops, error = await get_direction_stops(
-                self.session, direction, results=5
-            )
-
-            if not success or not stops:
-                _LOGGER.warning(
-                    "[fallback] Could not convert direction '%s' (error: %s)",
-                    direction,
-                    error,
-                )
-                # Keep original on failure (will likely error from API but worth trying)
-                return direction
-
-            # Build list of configured product types
-            config_products = []
-            if self.config.get(CONF_TYPE_SUBURBAN, False):
-                config_products.append("suburban")
-            if self.config.get(CONF_TYPE_SUBWAY, False):
-                config_products.append("subway")
-            if self.config.get(CONF_TYPE_TRAM, False):
-                config_products.append("tram")
-            if self.config.get(CONF_TYPE_BUS, False):
-                config_products.append("bus")
-            if self.config.get(CONF_TYPE_FERRY, False):
-                config_products.append("ferry")
-            if self.config.get(CONF_TYPE_EXPRESS, False):
-                config_products.append("express")
-            if self.config.get(CONF_TYPE_REGIONAL, False):
-                config_products.append("regional")
-
-            # Default to all if none configured
-            if not config_products:
-                config_products = [
-                    "suburban", "subway", "tram", "bus",
-                    "ferry", "express", "regional"
-                ]
-
-            # Find first stop with matching product
-            for stop in stops:
-                stop_products = stop.get("products", {})
-                for product in config_products:
-                    if stop_products.get(product, False):
-                        resolved_id = stop["id"]
-                        _LOGGER.info(
-                            "[fallback] Converted direction '%s' → Stop-ID %s (product: %s)",
-                            direction,
-                            resolved_id,
-                            product,
-                        )
-                        return resolved_id
-
-            # No stop found with matching products
-            _LOGGER.warning(
-                "[fallback] Direction '%s' found but no matching products (config has: %s)",
-                direction,
-                config_products,
-            )
-            return direction
-
-        except Exception as ex:  # pylint: disable=broad-exception-caught
-            _LOGGER.error(
-                "[fallback] Error converting direction '%s': %s",
-                direction,
-                ex,
-            )
-            # On error, keep original and let API error out
-            return direction
-
     async def fetch_departures(self) -> list[Departure] | None:
         """Fetch departures from VBB API with multi-direction support and error resilience.
 
         This method orchestrates the full departure fetching pipeline:
-        1. Resolve direction from text Stop-Name to numeric Stop-ID if needed (v0.1.6+)
-        2. Fetch from primary transport.rest API with direction support
-        3. Deduplicate results (when multiple directions include same trip)
-        4. Apply Ringbahn direction filters (⟳ and ⟲ symbols)
-        5. Remove Berlin suffix from direction names if configured
-        6. Filter out excluded stops
-        7. Sort by departure time
+        1. Fetch from primary transport.rest API with direction support
+        2. Deduplicate results (when multiple directions include same trip)
+        3. Apply Ringbahn direction filters (⟳ and ⟲ symbols)
+        4. Remove Berlin suffix from direction names if configured
+        5. Filter out excluded stops
+        6. Sort by departure time
 
         The method handles:
-        - Automatic conversion of Stop-Names to Stop-IDs (fallback for old configs)
         - Automatic ETag-based caching to reduce API load
         - Multi-direction queries (comma-separated)
         - Graceful fallback to BVG API when transport.rest fails
@@ -1164,17 +1061,14 @@ class TransportSensor(SensorEntity):
         """
         departures = []
 
-        # Step 0: Resolve direction if it's text (fallback for old configs)
-        resolved_direction = await self._resolve_direction_to_stopid(self.direction)
-
         # Step 1: Fetch departures
-        if resolved_direction is None:
-            res = await self.fetch_directional_departure(resolved_direction)
+        if self.direction is None:
+            res = await self.fetch_directional_departure(self.direction)
             if res is None:
                 return None
             departures += res
         else:
-            for direction in resolved_direction.split(","):
+            for direction in self.direction.split(","):
                 res = await self.fetch_directional_departure(direction.strip())
                 if res is None:
                     return None

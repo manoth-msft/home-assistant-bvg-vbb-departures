@@ -182,9 +182,13 @@ async def get_direction_stops(
             # Primary succeeded
             if isinstance(stops, list):
                 result = [
-                    {"name": stop["name"], "id": stop["id"]}
+                    {
+                        "name": stop.get("name", ""),
+                        "id": stop.get("id", ""),
+                        "products": stop.get("products", {}),
+                    }
                     for stop in stops
-                    if stop["type"] == "stop"
+                    if stop.get("type") == "stop" and stop.get("id")
                 ]
                 _LOGGER.debug(
                     (
@@ -199,6 +203,7 @@ async def get_direction_stops(
 
     # Primary failed/disabled, try secondary
     if SEC_API_ENABLED:
+        secondary_error: str | None = None
         try:
             async with async_timeout.timeout(API_REQUEST_TIMEOUT):
                 response = await session.get(
@@ -211,6 +216,7 @@ async def get_direction_stops(
                 response.raise_for_status()
                 stops = await response.json()
         except Exception as ex:  # pylint: disable=broad-exception-caught
+            secondary_error = "api_error"
             _LOGGER.debug(
                 (
                     "[direction] Stop search failed on secondary "
@@ -220,13 +226,17 @@ async def get_direction_stops(
                 ex,
             )
             primary_or_secondary_error = error_key or "api_error"
-        if error_key is None:
+        if secondary_error is None:
             # Secondary succeeded
             if isinstance(stops, list):
                 result = [
-                    {"name": stop["name"], "id": stop["id"]}
+                    {
+                        "name": stop.get("name", ""),
+                        "id": stop.get("id", ""),
+                        "products": stop.get("products", {}),
+                    }
                     for stop in stops
-                    if stop["type"] == "stop"
+                    if stop.get("type") == "stop" and stop.get("id")
                 ]
                 _LOGGER.debug(
                     (

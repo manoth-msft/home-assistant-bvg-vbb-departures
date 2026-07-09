@@ -57,9 +57,17 @@ async def _migrate_direction_field(  # pylint: disable=too-many-locals
     direction = entry.data.get(CONF_DEPARTURES_DIRECTION)
     migration_state = entry.data.get(DIRECTION_MIGRATION_STATE)
 
-    # Already processed
-    if migration_state in ("completed", "failed"):
+    # Already processed successfully
+    if migration_state == "completed":
         return True
+
+    # Previously failed migrations should retry on setup.
+    # This allows automatic recovery after transient API issues or bug fixes.
+    if migration_state == "failed":
+        _LOGGER.info(
+            "[migration] Retrying previously failed direction migration for stop '%s'",
+            entry.data.get("name", "unknown"),
+        )
 
     # Not needed: No direction set or already a Stop-ID
     if not direction or (isinstance(direction, str) and direction.isdigit()):
