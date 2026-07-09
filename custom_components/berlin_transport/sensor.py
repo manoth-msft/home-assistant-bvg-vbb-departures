@@ -65,6 +65,7 @@ from .const import (  # pylint: disable=unused-import
 )
 from .departure import Departure
 from .bvg_api import fetch_and_parse_bvg_departures
+from .config_flow import get_direction_stops
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -126,7 +127,7 @@ async def async_setup_entry(
 
 class TransportSensor(SensorEntity):
     """Home Assistant sensor entity for displaying VBB/BVG departures.
-    
+
     This sensor fetches real-time departure information from VBB
     transport.rest API with automatic fallback to BVG API during
     connectivity issues. It supports:
@@ -145,7 +146,7 @@ class TransportSensor(SensorEntity):
         entry_id: str | None = None,  # pylint: disable=unused-argument
     ) -> None:
         """Initialize TransportSensor with configuration from Home Assistant.
-        
+
         Args:
             hass: Home Assistant instance for session management and callbacks
             config: Configuration dictionary containing stop_id, sensor_name, direction, etc.
@@ -204,11 +205,11 @@ class TransportSensor(SensorEntity):
 
     def _get_now_utc(self) -> datetime:
         """Get current time in UTC (always timezone-aware).
-        
+
         This helper ensures all datetime comparisons work with UTC-aware objects.
         Using this method prevents timezone bugs that could arise from accidentally
         mixing naive and aware datetime objects.
-        
+
         Returns:
             Current UTC time as a timezone-aware datetime object.
         """
@@ -323,7 +324,7 @@ class TransportSensor(SensorEntity):
 
     def _invalidate_attributes_cache(self) -> None:
         """Invalidate cached attributes when sensor data changes.
-        
+
         This should be called whenever departures or state is updated to ensure
         that the next read of extra_state_attributes regenerates with fresh data.
         """
@@ -331,28 +332,28 @@ class TransportSensor(SensorEntity):
 
     def _refresh_attributes_cache(self) -> dict[str, Any]:
         """Regenerate attributes cache if stale (>5 seconds old).
-        
+
         Home Assistant reads extra_state_attributes multiple times per update cycle
         (state machine, templates, history, UI). This method caches the result to
         avoid redundant computation of:
         - Departure dict conversions (expensive to_dict() calls)
         - Health status calculations
         - Time-based calculations
-        
+
         The cache is invalidated when async_update() completes and regenerated on
         next property read if >5 seconds old.
-        
+
         Returns:
             Dictionary of state attributes ready for Home Assistant.
         """
         now_utc = self._get_now_utc()
-        
+
         # Return cached attributes if still fresh (<5 seconds old)
         if self._cached_attributes is not None and self._attributes_cache_time is not None:
             age_seconds = (now_utc - self._attributes_cache_time).total_seconds()
             if age_seconds < 5:
                 return self._cached_attributes
-        
+
         # Regenerate cache
         self._prune_cached_departures()
         cache_age_seconds = None
@@ -383,7 +384,7 @@ class TransportSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return cached state attributes (regenerated if >5 seconds old).
-        
+
         Uses caching to avoid redundant computation when Home Assistant reads
         this property multiple times per update cycle. Attributes are invalidated
         when async_update() completes and regenerated on next access if needed.
@@ -392,7 +393,7 @@ class TransportSensor(SensorEntity):
 
     async def async_will_remove_from_hass(self) -> None:
         """Called when entity is removed from Home Assistant.
-        
+
         This hook ensures proper cleanup when the sensor is removed.
         The aiohttp session is managed by Home Assistant and will be
         closed automatically, so no explicit cleanup is needed here.
@@ -400,20 +401,20 @@ class TransportSensor(SensorEntity):
 
     async def async_update(self) -> None:
         """Poll for departure updates from VBB/BVG APIs.
-        
+
         This is the main update method called by Home Assistant's coordinator on
         SCAN_INTERVAL (120 seconds). It orchestrates the complete update cycle:
-        
+
         1. Check if currently in exponential backoff (after API failures)
         2. Fetch departures from VBB transport.rest API (with ETag caching)
         3. Fall back to BVG API if transport.rest fails
         4. Parse and deduplicate results
         5. Apply filters and sort by departure time
         6. Update sensor state attributes
-        
+
         All state modifications are protected by asyncio.Lock to prevent race conditions
         when concurrent updates occur (e.g., manual refresh + scheduled update).
-        
+
         On success: Sets self.departures, resets failure counter, updates last_update_success
         On failure: Increments failure counter, activates exponential backoff
         """
@@ -442,7 +443,7 @@ class TransportSensor(SensorEntity):
 
     async def _handle_backoff_period(self) -> None:
         """Handle requests during backoff period.
-        
+
         When in backoff, the sensor uses cached data only. No new API calls are made.
         The entity is kept available to preserve attributes (health_status, last_updated, etc)
         which are important for debugging API issues.
@@ -458,17 +459,17 @@ class TransportSensor(SensorEntity):
 
     async def _handle_failed_fetch(self, now_utc: datetime) -> None:
         """Handle failed API fetch with exponential backoff and fallback activation.
-        
+
         Implements exponential backoff strategy:
         - 1st failure: 120s (2 min)
-        - 2nd failure: 240s (4 min)  
+        - 2nd failure: 240s (4 min)
         - 3rd failure: 480s (8 min)
         - ...up to max 900s (15 min)
-        
+
         Attempts BVG fallback API immediately on failure if enabled.
         Sets entity to unavailable only if no cached data exists (otherwise remains
         available with stale data). Activates fallback mode to allow BVG API retries.
-        
+
         Args:
             now_utc: Current UTC time for calculating next retry window
         """
@@ -491,8 +492,10 @@ class TransportSensor(SensorEntity):
         if departures is not None:
             # Smart merge: Only merge if cache is from transport.rest.
             # If cache is from previous BVG fallback, don't merge (BVG + BVG = useless)
-            if (self.departures and 
-                self._data_source in ("transport.rest", "transport.rest+bvg_delays")):
+            if (
+                self.departures
+                and self._data_source in ("transport.rest", "transport.rest+bvg_delays")
+            ):
                 # Cache from transport.rest: merge BVG delays into filtered data
                 merged = self._merge_bvg_delays_into_cached_departures(
                     cached_departures=self.departures,
@@ -504,7 +507,7 @@ class TransportSensor(SensorEntity):
                 # No cache or cache is from previous BVG fallback → just use BVG
                 self.departures = departures
                 self._data_source = "bvg_api"
-            
+
             self.last_update_success = now_utc
             self._consecutive_failures = 0
             self._next_retry_at = None
@@ -603,27 +606,27 @@ class TransportSensor(SensorEntity):
         bvg_departures: list[Departure],
     ) -> list[Departure]:
         """Merge BVG delay information into cached transport.rest departures.
-        
+
         Smart fallback strategy: When transport.rest fails, instead of replacing
         well-filtered transport.rest data with unfiltered BVG data, this method
         intelligently merges the two:
-        
+
         1. Keeps cached transport.rest departures (they have correct direction filtering)
         2. Updates delay information from BVG API (fresh, current data)
         3. Updates warning information from BVG API if available
         4. Adds new departures from BVG that weren't in cache (fills gaps)
         5. Preserves original line type, direction, and other metadata
-        
+
         This ensures users continue to see correctly-filtered departures while
         getting the most current delay information available.
-        
+
         Matching strategy: Uses (line_name, time) tuple as key. This is stable across
         both APIs and avoids matching issues with slight timestamp differences.
-        
+
         Args:
             cached_departures: Original, well-filtered departures from transport.rest
             bvg_departures: Fresh departures from BVG API (may contain unfiltered data)
-            
+
         Returns:
             List of cached departures with updated delays from BVG, plus new BVG departures
         """
@@ -633,21 +636,21 @@ class TransportSensor(SensorEntity):
             key = (dep.line_name, dep.time)
             if key not in bvg_lookup:  # Keep first match (in case of duplicates)
                 bvg_lookup[key] = dep
-        
+
         cache_lookup: dict[tuple[str, str], bool] = {}
         for dep in cached_departures:
             cache_lookup[(dep.line_name, dep.time)] = True
-        
+
         # Merge: Keep cached departures, update delays from BVG
         merged: list[Departure] = []
         merged_count = 0
         unmatched_count = 0
         new_count = 0
-        
+
         for cached_dep in cached_departures:
             key = (cached_dep.line_name, cached_dep.time)
             bvg_dep = bvg_lookup.get(key)
-            
+
             if bvg_dep is not None:
                 # Found matching BVG departure: update delay and warnings
                 updated_dep = replace(
@@ -661,14 +664,14 @@ class TransportSensor(SensorEntity):
                 # No BVG match: Keep cached departure as-is
                 merged.append(cached_dep)
                 unmatched_count += 1
-        
+
         # Add new departures from BVG that weren't in cache
         for bvg_dep in bvg_departures:
             key = (bvg_dep.line_name, bvg_dep.time)
             if key not in cache_lookup:
                 merged.append(bvg_dep)
                 new_count += 1
-        
+
         _LOGGER.debug(
             "[merge] Merged BVG delays into cached departures for stop %s: "
             "matched=%d, unmatched=%d (kept old), new=%d (added)",
@@ -677,7 +680,7 @@ class TransportSensor(SensorEntity):
             unmatched_count,
             new_count,
         )
-        
+
         return merged
 
     async def _fetch_bvg_fallback(self) -> list[Departure] | None:
@@ -754,20 +757,19 @@ class TransportSensor(SensorEntity):
 
         return parsed_departures
 
-
     def _build_transport_params(self, direction: str | None) -> dict[str, Any]:
         """Build API request parameters for transport.rest API.
-        
+
         Constructs query parameters including departure time (adjusted for walking time),
         result limits, duration window, and transport type filters (configured by user).
-        
+
         Direction filter is only included if it has a non-empty value, as the API
         rejects empty direction parameters (must be a valid IBNR).
-        
+
         Args:
             direction: Optional direction filter string (stop IBNR). Only included
                        in params if non-empty.
-        
+
         Returns:
             Dictionary of API parameters ready to send to transport.rest endpoint
         """
@@ -785,17 +787,17 @@ class TransportSensor(SensorEntity):
             "express": str(bool(self.config.get(CONF_TYPE_EXPRESS))).lower(),
             "regional": str(bool(self.config.get(CONF_TYPE_REGIONAL))).lower(),
         }
-        
+
         # Only include direction if it has a non-empty value.
         # API rejects empty direction parameters: "direction must be an IBNR"
         if direction:
             params["direction"] = direction
-        
+
         return params
 
     def _get_excluded_stops(self) -> list[str]:
         """Parse comma-separated excluded stop IDs from configuration.
-        
+
         Returns:
             List of stop IDs (as strings) to exclude from results. Empty list if
             no stops are configured for exclusion.
@@ -812,15 +814,15 @@ class TransportSensor(SensorEntity):
         self, departures_data: list[dict], excluded_stops: list[str]
     ) -> list[Departure]:
         """Parse departures from API response, filtering by excluded stops.
-        
+
         Converts raw JSON departure objects to Departure dataclass instances.
         Silently skips malformed entries (missing required fields) and stops
         in the excluded stops list.
-        
+
         Args:
             departures_data: Raw departure dictionaries from API response
             excluded_stops: List of stop IDs to exclude from results
-        
+
         Returns:
             List of successfully parsed Departure objects, may be empty if all
             entries are malformed or excluded.
@@ -841,14 +843,14 @@ class TransportSensor(SensorEntity):
 
     def _etag_cache_key(self, endpoint_name: str, request_key: str) -> str:
         """Generate endpoint-aware cache key for ETag storage.
-        
+
         Ensures separate ETags for primary and secondary endpoints, preventing
         ETag collision when APIs return different response data.
-        
+
         Args:
             endpoint_name: "primary" or "secondary"
             request_key: Base request variant key (stop_id + direction)
-        
+
         Returns:
             Combined cache key: "endpoint_name:request_key"
         """
@@ -862,11 +864,11 @@ class TransportSensor(SensorEntity):
         parsed: list[Departure],
     ) -> None:
         """Update ETag and departure cache with TTL-based cleanup.
-        
+
         Stores the API response with its ETag for future cache validation. Old cache
         entries (older than CACHE_TTL_SECONDS) are automatically removed to prevent
         unbounded memory growth when users change direction filters or other config.
-        
+
         Args:
             endpoint_name: "primary" or "secondary" endpoint
             request_key: Unique key combining stop_id and direction parameters
@@ -903,16 +905,16 @@ class TransportSensor(SensorEntity):
         self, endpoint_url: str, endpoint_name: str, direction: str | None
     ) -> list[Departure] | None:
         """Attempt to fetch departures from a specific endpoint with ETag caching.
-        
+
         Tries a single API endpoint with full ETag validation and error handling.
         Returns None on any failure (HTTP error, timeout, parsing error), allowing
         the caller to fall back to the next endpoint.
-        
+
         Args:
             endpoint_url: Base URL of the API endpoint (e.g., https://v6.vbb.transport.rest)
             endpoint_name: Name for logging ("primary" or "secondary")
             direction: Direction string to filter results, None for all directions
-        
+
         Returns:
             List of Departure objects on success, None on any failure.
         """
@@ -973,7 +975,7 @@ class TransportSensor(SensorEntity):
 
         etag = response.headers.get("ETag")
         self._update_cache(endpoint_name, request_key, etag, parsed_departures)
-        
+
         # Log successful fetch
         _LOGGER.debug(
             "[transport.rest] 200 OK (endpoint=%s, stop=%s, direction=%s, departures=%d)",
@@ -982,21 +984,21 @@ class TransportSensor(SensorEntity):
             direction or "all",
             len(parsed_departures),
         )
-        
+
         return parsed_departures
 
     async def fetch_directional_departure(
         self, direction: str | None
     ) -> list[Departure] | None:
         """Fetch departures with dual-API failover: primary → secondary → None.
-        
+
         Implements sequential failover between primary (v6.vbb.transport.rest) and
         secondary (custom instance) endpoints. Only returns None if both fail,
         allowing the caller to invoke backoff and BVG fallback logic.
-        
+
         Args:
             direction: Direction string to filter results, None for all directions
-        
+
         Returns:
             List of Departure objects from first successful endpoint, or None if both fail.
         """
@@ -1008,7 +1010,7 @@ class TransportSensor(SensorEntity):
             if departures is not None:
                 self._last_successful_endpoint = "primary"
                 return departures
-        
+
         # Primary failed or disabled, try secondary endpoint (if enabled)
         if SEC_API_ENABLED:
             _LOGGER.info(
@@ -1030,7 +1032,7 @@ class TransportSensor(SensorEntity):
                     len(departures),
                 )
                 return departures
-        
+
         # Both endpoints failed or disabled, trigger backoff + BVG fallback
         _LOGGER.warning(
             "[failover] Primary and secondary endpoints failed/disabled "
@@ -1040,38 +1042,137 @@ class TransportSensor(SensorEntity):
         )
         return None
 
+    async def _resolve_direction_to_stopid(self, direction: str | None) -> str | None:
+        """Convert direction from Stop-Name text to numeric Stop-ID if needed.
+
+        This is a fallback for old configs that have stop names instead of IDs
+        in the direction field (v0.1.5 and earlier). It attempts to look up the
+        Stop-Name and use the first matching Stop-ID with a product type matching
+        the sensor's configuration.
+
+        Args:
+            direction: Direction filter (either numeric Stop-ID or Stop-Name text)
+
+        Returns:
+            Resolved Stop-ID (string of digits), or original direction if already numeric,
+            or None if direction is None or conversion fails.
+        """
+        if not direction:
+            return direction
+
+        # Already a numeric Stop-ID
+        if direction.isdigit():
+            return direction
+
+        # Text Stop-Name → try to convert
+        _LOGGER.debug(
+            "[fallback] Direction '%s' is text, attempting to convert to Stop-ID",
+            direction,
+        )
+
+        try:
+            # Search for direction stops
+            success, stops, error = await get_direction_stops(
+                self.session, direction, results=5
+            )
+
+            if not success or not stops:
+                _LOGGER.warning(
+                    "[fallback] Could not convert direction '%s' (error: %s)",
+                    direction,
+                    error,
+                )
+                # Keep original on failure (will likely error from API but worth trying)
+                return direction
+
+            # Build list of configured product types
+            config_products = []
+            if self.config.get(CONF_TYPE_SUBURBAN, False):
+                config_products.append("suburban")
+            if self.config.get(CONF_TYPE_SUBWAY, False):
+                config_products.append("subway")
+            if self.config.get(CONF_TYPE_TRAM, False):
+                config_products.append("tram")
+            if self.config.get(CONF_TYPE_BUS, False):
+                config_products.append("bus")
+            if self.config.get(CONF_TYPE_FERRY, False):
+                config_products.append("ferry")
+            if self.config.get(CONF_TYPE_EXPRESS, False):
+                config_products.append("express")
+            if self.config.get(CONF_TYPE_REGIONAL, False):
+                config_products.append("regional")
+
+            # Default to all if none configured
+            if not config_products:
+                config_products = ["suburban", "subway", "tram", "bus", "ferry", "express", "regional"]
+
+            # Find first stop with matching product
+            for stop in stops:
+                stop_products = stop.get("products", {})
+                for product in config_products:
+                    if stop_products.get(product, False):
+                        resolved_id = stop["id"]
+                        _LOGGER.info(
+                            "[fallback] Converted direction '%s' → Stop-ID %s (product: %s)",
+                            direction,
+                            resolved_id,
+                            product,
+                        )
+                        return resolved_id
+
+            # No stop found with matching products
+            _LOGGER.warning(
+                "[fallback] Direction '%s' found but no matching products (config has: %s)",
+                direction,
+                config_products,
+            )
+            return direction
+
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            _LOGGER.error(
+                "[fallback] Error converting direction '%s': %s",
+                direction,
+                ex,
+            )
+            # On error, keep original and let API error out
+            return direction
+
     async def fetch_departures(self) -> list[Departure] | None:
         """Fetch departures from VBB API with multi-direction support and error resilience.
-        
+
         This method orchestrates the full departure fetching pipeline:
-        1. Fetch from primary transport.rest API with direction support
-        2. Deduplicate results (when multiple directions include same trip)
-        3. Apply Ringbahn direction filters (⟳ and ⟲ symbols)
-        4. Remove Berlin suffix from direction names if configured
-        5. Filter out excluded stops
-        6. Sort by departure time
-        
+        1. Resolve direction from text Stop-Name to numeric Stop-ID if needed (v0.1.6+)
+        2. Fetch from primary transport.rest API with direction support
+        3. Deduplicate results (when multiple directions include same trip)
+        4. Apply Ringbahn direction filters (⟳ and ⟲ symbols)
+        5. Remove Berlin suffix from direction names if configured
+        6. Filter out excluded stops
+        7. Sort by departure time
+
         The method handles:
+        - Automatic conversion of Stop-Names to Stop-IDs (fallback for old configs)
         - Automatic ETag-based caching to reduce API load
         - Multi-direction queries (comma-separated)
         - Graceful fallback to BVG API when transport.rest fails
         - Proper error recovery without failing on single API errors
-        
+
         Returns:
             Sorted list of Departure objects by timestamp, or None if all
             API requests fail and no cached data is available.
         """
         departures = []
 
-        # Step 1: Fetch departures
+        # Step 0: Resolve direction if it's text (fallback for old configs)
+        resolved_direction = await self._resolve_direction_to_stopid(self.direction)
 
-        if self.direction is None:
-            res = await self.fetch_directional_departure(self.direction)
+        # Step 1: Fetch departures
+        if resolved_direction is None:
+            res = await self.fetch_directional_departure(resolved_direction)
             if res is None:
                 return None
             departures += res
         else:
-            for direction in self.direction.split(","):
+            for direction in resolved_direction.split(","):
                 res = await self.fetch_directional_departure(direction.strip())
                 if res is None:
                     return None
@@ -1112,7 +1213,7 @@ class TransportSensor(SensorEntity):
 
     def next_departure(self) -> Departure | None:
         """Get the next (earliest) departure from the current list.
-        
+
         Returns:
             The first Departure object from the sorted list (earliest timestamp),
             or None if no departures are available.

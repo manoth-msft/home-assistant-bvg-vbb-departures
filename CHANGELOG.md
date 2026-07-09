@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.6] - 2026-07-09
+
+### Added
+- **New direction filter config flow** (v0.1.6): Direction filters are no longer configured as text in YAML, but through a dedicated config flow step. Users can now:
+  - Search for station names (e.g., "Zwickauer Damm") instead of finding numeric Stop-IDs
+  - Automatic API validation ensures the station exists on the departures route
+  - Multi-match handling: If multiple stations have the same name, the config flow presents a selection dropdown
+  - Direction field is now optional during setup (can be skipped)
+
+- **Auto-migration from old direction format** (v0.1.6): Existing configs with Stop-Names in the direction field are automatically migrated to Stop-IDs on setup:
+  - Automatic lookup of Stop-Names and conversion to Stop-IDs
+  - Smart product matching (S-Bahn, U-Bahn, Bus, etc.) using the sensor's configured transport types
+  - Non-blocking: Errors don't prevent sensor setup; warnings are logged
+  - Migration state tracking: "not_needed" → "completed" or "failed"
+
+- **Fallback direction resolution** (v0.1.6): If a sensor somehow has a Stop-Name instead of Stop-ID (e.g., from YAML import), it's automatically converted to a Stop-ID at runtime:
+  - Occurs during departure fetching
+  - Uses the same smart product matching as auto-migration
+  - Logs conversion attempts for debugging
+
+### Fixed
+- **CRITICAL**: Resolved HTTP 500 errors caused by users entering Stop-Names instead of numeric Stop-IDs in the direction field (25 errors reported from 2026-07-09). Root cause was the API rejecting non-numeric direction parameters with "direction must be an IBNR". Now fully mitigated through config flow + auto-migration.
+
+### Changed
+- Direction filtering workflow improved: New dedicated config flow steps replace manual text entry, reducing user errors and confusion about Stop-ID vs Stop-Name
+- Imports in config_flow.py reorganized to include new constants for direction migration
+- Sensor.py enhanced with fallback direction resolution for edge cases
+- __init__.py extended with migration logic that runs non-blocking on config entry setup
+
 ## [0.1.5] - 2026-07-08
 
 ### Added

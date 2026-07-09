@@ -53,7 +53,7 @@ def parse_bvg_departures(
     transport_type_filters: dict[str, bool] | None = None,
 ) -> list[Departure]:
     """Parse BVG departureBoard API response into Departure objects.
-    
+
     Optionally filters departures by transport type only.
 
     Args:
@@ -202,28 +202,28 @@ def _filter_departures_by_type(
     transport_type_filters: dict[str, bool] | None = None,
 ) -> list[Departure]:
     """Filter departures by transport type (CLIENT-SIDE).
-    
+
     This function implements the transport type filtering that the transport.rest API does
     server-side, but must be done client-side for the BVG API.
-    
+
     Direction filtering is NOT applied because transport.rest filters by intermediate stops
     while BVG can only filter by final destinations—these are not equivalent semantics.
-    
+
     Args:
         departures: List of parsed Departure objects
         transport_type_filters: Dict mapping line_type to bool.
                                If provided, only departures with enabled types are kept.
-    
+
     Returns:
         Filtered list of Departure objects.
     """
     filtered = departures
-    
+
     # Apply transport type filter (if configured)
     if transport_type_filters:
         filtered = []
         enabled_types = [k for k, v in transport_type_filters.items() if v]
-        
+
         for d in departures:
             is_enabled = transport_type_filters.get(d.line_type, False)
             if is_enabled:
@@ -235,5 +235,5 @@ def _filter_departures_by_type(
                     d.line_type,
                     enabled_types,
                 )
-    
+
     return filtered

@@ -32,7 +32,11 @@ from .const import (
     CONF_EXCLUDE_RINGBAHN_CLOCKWISE,
     CONF_EXCLUDE_RINGBAHN_COUNTERCLOCKWISE,
     CONF_REMOVE_BERLIN_SUFFIX,
-    DOMAIN,  # noqa
+    DOMAIN,
+    DIRECTION_ID_MIGRATION_ENABLED,
+    DIRECTION_MIGRATION_STATE,
+    DIRECTION_DEBUG_KEEP_AS_TEXT,
+    DIRECTION_DEBUG_MODE_ENABLED,
 )
 
 from .sensor import TRANSPORT_TYPES_SCHEMA
@@ -66,16 +70,16 @@ async def _try_fetch_stops_from_endpoint(  # pylint: disable=too-many-return-sta
     session: aiohttp.ClientSession, endpoint_url: str, endpoint_name: str, name: str
 ) -> tuple[list[dict[str, Any]] | None, str | None]:
     """Try to fetch stops from a specific endpoint.
-    
+
     Attempts a single API endpoint and returns the results or None on failure.
     This allows the caller to fall back to the next endpoint.
-    
+
     Args:
         session: aiohttp ClientSession for making HTTP requests
         endpoint_url: Base URL of the API endpoint
         endpoint_name: Name for logging ("primary" or "secondary")
         name: Stop name or partial name to search for
-        
+
     Returns:
         Tuple of (stops, error_key) where:
         - stops: List of stops on success, None on failure
@@ -145,7 +149,7 @@ async def _try_fetch_stops_from_endpoint(  # pylint: disable=too-many-return-sta
         for stop in stops
         if stop["type"] == "stop"
     ]
-    
+
     _LOGGER.debug(
         "[config_flow] Found %s stops on %s for query '%s'",
         len(result),
@@ -159,14 +163,14 @@ async def get_stop_id(
     session: aiohttp.ClientSession, name: str
 ) -> tuple[bool, list[dict[str, Any]], str | None]:
     """Search for VBB stops by name with dual-API failover.
-    
+
     Attempts to fetch stops from primary endpoint first, then secondary
     endpoint if primary fails. Returns immediately on success from either.
-    
+
     Args:
         session: aiohttp ClientSession for making HTTP requests
         name: Stop name or partial name to search for
-        
+
     Returns:
         Tuple of (success, stops, error_key) where:
         - success: True if API call succeeded (even if no results found)
@@ -175,7 +179,7 @@ async def get_stop_id(
     """
     error_key: str | None = None
     primary_or_secondary_error: str | None = "api_error"
-    
+
     # Try primary endpoint first (if enabled)
     if PRIM_API_ENABLED:
         stops, error_key = await _try_fetch_stops_from_endpoint(
@@ -184,7 +188,7 @@ async def get_stop_id(
         if error_key is None:
             # Primary succeeded (with or without results)
             return True, stops or [], None
-    
+
     # Primary failed or disabled, try secondary endpoint (if enabled)
     if SEC_API_ENABLED:
         stops, secondary_error = await _try_fetch_stops_from_endpoint(
@@ -198,7 +202,7 @@ async def get_stop_id(
     else:
         # Secondary disabled, use primary error if we have it
         primary_or_secondary_error = error_key or "api_error"
-    
+
     # Both endpoints failed or disabled, return the appropriate error
     _LOGGER.warning(
         "[config_flow] Stop search failed on both endpoints "
@@ -212,11 +216,11 @@ async def get_stop_id(
 
 def list_stops(stops: list[dict[str, Any]]) -> vol.Schema:
     """Create a dropdown schema for selecting from a list of stops.
-    
+
     Args:
         stops: List of stop dictionaries containing CONF_DEPARTURES_NAME and
                CONF_DEPARTURES_STOP_ID keys
-        
+
     Returns:
         Voluptuous schema with a required dropdown selector containing stop options.
     """
@@ -237,6 +241,118 @@ def list_stops(stops: list[dict[str, Any]]) -> vol.Schema:
     return schema
 
 
+async def get_direction_stops(
+    session: aiohttp.ClientSession, name: str, results: int = 5
+) -> tuple[bool, list[dict[str, Any]], str | None]:
+    """Search for direction stops with customizable result limit.
+
+    Like get_stop_id but with adjustable results parameter for direction filtering.
+    Returns stops with full product information for later filtering.
+
+    Args:
+        session: aiohttp ClientSession
+        name: Stop name to search for
+        results: Number of results to return (default 5)
+
+    Returns:
+        Tuple of (success, stops, error_key)
+    """
+    error_key: str | None = None
+    primary_or_secondary_error: str | None = "api_error"
+
+    # Try primary endpoint first
+    if PRIM_API_ENABLED:
+        try:
+            async with async_timeout.timeout(240):
+                response = await session.get(
+                    url=f"{PRIM_API_ENDPOINT}/locations",
+                    params={
+                        "query": name,
+                        "results": results,
+                    },
+                )
+                response.raise_for_status()
+                stops = await response.json()
+        except aiohttp.ClientResponseError as ex:
+            error_key = "api_rate_limited" if ex.status == 429 else "api_error"
+            _LOGGER.debug(
+                "[config_flow] Direction stop search failed on primary (query=%s, status=%s)",
+                name,
+                ex.status,
+            )
+        except (aiohttp.ClientError, TimeoutError) as ex:
+            error_key = "api_error"
+            _LOGGER.debug(
+                "[config_flow] Direction stop search error on primary (query=%s): %s",
+                name,
+                ex,
+            )
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            error_key = "api_error"
+            _LOGGER.debug(
+                "[config_flow] Unexpected error in direction search on primary: %s", ex
+            )
+        else:
+            # Primary succeeded
+            if isinstance(stops, list):
+                result = [
+                    {"name": stop["name"], "id": stop["id"]}
+                    for stop in stops
+                    if stop["type"] == "stop"
+                ]
+                _LOGGER.debug(
+                    "[config_flow] Found %s direction stops on primary for query '%s'",
+                    len(result),
+                    name,
+                )
+                return True, result, None
+            else:
+                error_key = "api_error"
+
+    # Primary failed/disabled, try secondary
+    if SEC_API_ENABLED:
+        try:
+            async with async_timeout.timeout(240):
+                response = await session.get(
+                    url=f"{SEC_API_ENDPOINT}/locations",
+                    params={
+                        "query": name,
+                        "results": results,
+                    },
+                )
+                response.raise_for_status()
+                stops = await response.json()
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            _LOGGER.debug(
+                "[config_flow] Direction stop search failed on secondary (query=%s): %s",
+                name,
+                ex,
+            )
+            primary_or_secondary_error = error_key or "api_error"
+        else:
+            # Secondary succeeded
+            if isinstance(stops, list):
+                result = [
+                    {"name": stop["name"], "id": stop["id"]}
+                    for stop in stops
+                    if stop["type"] == "stop"
+                ]
+                _LOGGER.debug(
+                    "[config_flow] Found %s direction stops on secondary for query '%s'",
+                    len(result),
+                    name,
+                )
+                return True, result, None
+            else:
+                primary_or_secondary_error = "api_error"
+
+    _LOGGER.warning(
+        "[config_flow] Direction stop search failed on both endpoints (query=%s)",
+        name,
+    )
+    return False, [], primary_or_secondary_error
+
+
 class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
@@ -245,6 +361,7 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Init the ConfigFlow."""
         self.data: dict[str, Any] = {}
+        self._direction_stop: dict[str, Any] | None = None  # For direction steps
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -256,7 +373,7 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 data_schema=NAME_SCHEMA,
                 errors={},
             )
-        
+
         session = async_get_clientsession(self.hass)
         success, stops, error_key = await get_stop_id(
             session, user_input[CONF_SEARCH]
@@ -312,7 +429,7 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     data_schema=NAME_SCHEMA,
                     errors={},
                 )
-            
+
             return self.async_show_form(
                 step_id="stop",
                 data_schema=list_stops(self.data[CONF_FOUND_STOPS]),
@@ -340,7 +457,173 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         ) = selected_stop
         _LOGGER.debug("[config_flow] Selected stop '%s' [%s]", selected_stop[0], selected_stop[1])
 
-        return await self.async_step_details()
+        return await self.async_step_direction_input()
+
+    async def async_step_direction_input(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle optional direction filter input."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="direction_input",
+                data_schema=vol.Schema({
+                    vol.Optional("direction_name"): cv.string,
+                }),
+                description_placeholders={
+                    "main_stop": self.data.get(CONF_DEPARTURES_NAME, "Unknown"),
+                },
+            )
+
+        direction_name = user_input.get("direction_name", "").strip()
+
+        # User didn't enter anything → skip direction and go to details
+        if not direction_name:
+            return await self.async_step_details()
+
+        # Search for direction stops
+        session = async_get_clientsession(self.hass)
+        success, stops, error_key = await get_direction_stops(
+            session, direction_name, results=5
+        )
+
+        # API call failed
+        if not success:
+            _LOGGER.warning(
+                "[config_flow] Direction search failed (query=%s): %s",
+                direction_name,
+                error_key,
+            )
+            return self.async_show_form(
+                step_id="direction_input",
+                data_schema=vol.Schema({
+                    vol.Optional("direction_name"): cv.string,
+                }),
+                errors={"base": error_key},
+            )
+
+        # No stops found
+        if not stops:
+            _LOGGER.debug(
+                "[config_flow] No direction stops found for query '%s'",
+                direction_name,
+            )
+            return self.async_show_form(
+                step_id="direction_input",
+                data_schema=vol.Schema({
+                    vol.Optional("direction_name"): cv.string,
+                }),
+                errors={"base": "stop_not_found"},
+                description_placeholders={"search_query": direction_name},
+            )
+
+        # Store candidates for later steps
+        self.data["direction_candidates"] = stops
+        self.data["direction_name"] = direction_name
+
+        # Single match → go directly to validation
+        if len(stops) == 1:
+            self._direction_stop = stops[0]
+            return await self.async_step_direction_validate()
+
+        # Multiple matches → ask user to select
+        return await self.async_step_direction_select()
+
+    async def async_step_direction_select(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle direction stop selection when multiple matches found."""
+        if user_input is None:
+            options = [
+                f"{s['name']} [{s['id']}]" for s in self.data["direction_candidates"]
+            ]
+            return self.async_show_form(
+                step_id="direction_select",
+                data_schema=vol.Schema({
+                    vol.Required("selected_stop"): vol.In(options),
+                }),
+            )
+
+        selected_text = user_input["selected_stop"]
+        # Parse "Station Name [900083101]" → extract ID
+        stop_id = selected_text.split("[")[-1].rstrip("]")
+
+        self._direction_stop = {
+            "id": stop_id,
+            "name": selected_text.split(" [")[0],
+        }
+
+        return await self.async_step_direction_validate()
+
+    async def async_step_direction_validate(self) -> FlowResult:
+        """Validate that direction stop exists on the main stop's route."""
+        if self._direction_stop is None:
+            _LOGGER.error("[config_flow] direction_validate called but _direction_stop is None")
+            return await self.async_step_details()
+
+        main_stop_id = self.data.get(CONF_DEPARTURES_STOP_ID)
+        direction_id = self._direction_stop["id"]
+        direction_name = self._direction_stop["name"]
+
+        # DEBUG-MODE: Keep certain stops as text for testing
+        if DIRECTION_DEBUG_MODE_ENABLED and direction_name in DIRECTION_DEBUG_KEEP_AS_TEXT:
+            _LOGGER.warning(
+                "[config_flow] DEBUG-MODE: Direction '%s' will be saved as TEXT, not Stop-ID!",
+                direction_name,
+            )
+            self.data[CONF_DEPARTURES_DIRECTION] = direction_name  # Save as text
+            return await self.async_step_details()
+
+        try:
+            session = async_get_clientsession(self.hass)
+
+            # Query trips to validate direction stop is on route
+            trips_url = f"{PRIM_API_ENDPOINT}/trips"
+            params = {
+                "currentlyStoppingAt": main_stop_id,
+                "fromWhen": "today",
+                "untilWhen": "next week",
+                "stopovers": "true",
+            }
+
+            async with async_timeout.timeout(30):
+                response = await session.get(trips_url, params=params)
+                response.raise_for_status()
+                trips = await response.json()
+
+            # Check if direction_id appears in any trip's stopovers
+            found = False
+            if isinstance(trips, list):
+                for trip in trips:
+                    stopovers = trip.get("stopovers", [])
+                    if any(
+                        stop.get("stop", {}).get("id") == direction_id
+                        for stop in stopovers
+                    ):
+                        found = True
+                        break
+
+            if not found:
+                _LOGGER.warning(
+                    "[config_flow] Direction stop '%s' [%s] not found on trips from '%s'",
+                    direction_name,
+                    direction_id,
+                    self.data.get(CONF_DEPARTURES_NAME),
+                )
+                # Still save it, but log warning
+
+            # Save the direction Stop-ID
+            self.data[CONF_DEPARTURES_DIRECTION] = direction_id
+            return await self.async_step_details()
+
+        except Exception as ex:  # pylint: disable=broad-exception-caught
+            _LOGGER.error(
+                "[config_flow] Direction validation failed (direction=%s): %s",
+                direction_name,
+                ex,
+            )
+            # On error, still save the Stop-ID (don't block)
+            self.data[CONF_DEPARTURES_DIRECTION] = direction_id
+            return await self.async_step_details()
 
     async def async_step_details(
         self, user_input: dict[str, Any] | None = None
@@ -356,6 +639,11 @@ class TransportConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         data = user_input
         data[CONF_DEPARTURES_STOP_ID] = self.data[CONF_DEPARTURES_STOP_ID]
         data[CONF_DEPARTURES_NAME] = self.data[CONF_DEPARTURES_NAME]
+
+        # Preserve direction from direction-steps if it was set
+        if CONF_DEPARTURES_DIRECTION in self.data and self.data[CONF_DEPARTURES_DIRECTION]:
+            data[CONF_DEPARTURES_DIRECTION] = self.data[CONF_DEPARTURES_DIRECTION]
+
         return self.async_create_entry(
             title=f"{data[CONF_DEPARTURES_NAME]} [{data[CONF_DEPARTURES_STOP_ID]}]",
             data=data,

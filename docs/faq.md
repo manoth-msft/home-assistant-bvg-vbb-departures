@@ -43,6 +43,44 @@ The first `"id"` field contains the required `stop_id` — here: **900100003**.
 
 ---
 
+### Q: How do I set up direction filtering? (v0.1.6+)
+
+Starting with v0.1.6, direction filtering is now configured through a dedicated config flow UI instead of manual text entry.
+
+**Setup process:**
+1. During initial setup, after selecting your stop, you'll be prompted: *"Do you want to filter departures by a specific direction?"*
+2. Enter a station name (e.g., "Zwickauer Damm", "Adlershof"). Partial names are supported.
+3. If multiple stations match your input, you'll see a dropdown to select the correct one.
+4. The integration automatically validates that the station exists on your departures route.
+5. If validation fails, you'll see a warning but can choose to proceed anyway.
+
+**No need to know Stop-IDs anymore!** The integration handles the lookup and conversion automatically.
+
+**What changed from v0.1.5?**
+- **Old (v0.1.5)**: You had to find numeric Stop-IDs and configure them as text in YAML.
+- **New (v0.1.6)**: Just type the station name in the config flow. The integration finds the Stop-ID for you.
+- **Auto-migration**: If you have an old config with a Stop-Name in the direction field, it's automatically converted to a Stop-ID on startup.
+
+---
+
+### Q: I see a warning "Direction stop not found on trips". What does this mean?
+
+Starting with v0.1.6, the integration validates that your direction station exists on the departures route.
+
+**If you see this warning:**
+- It means the station you selected isn't expected on the route during the next 7 days (based on today's schedule).
+- This can happen if:
+  - The station is served on some lines but not others
+  - The station's service has changed
+  - There's a temporary service disruption
+  
+**What to do:**
+- The warning is informational only — your sensor will still work fine and fetch departures.
+- The integration doesn't block the configuration, so you can ignore the warning.
+- If the warning persists, verify that the station name matches exactly what you intended.
+
+---
+
 ### Q: How can I change configuration options later?
 
 Go to **Settings > Devices & Services**, select the **BVG/VBB Departures** integration, and click on the three dots next to the entity you want to update. Delete the entry.

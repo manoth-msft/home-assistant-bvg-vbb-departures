@@ -16,6 +16,23 @@
           "selected_stop": "Haltestelle (Name und ID)"
         }
       },
+      "direction_input": {
+        "title": "Richtungsfilter (Optional)",
+        "description": "Möchten Sie Abfahrten nach einer bestimmten Haltestelle filtern?\n\nBeispiel: 'Zwickauer Damm' zeigt nur Züge, die dort halten.\n\nFreilassen, um diesen Schritt zu überspringen.",
+        "data": {
+          "direction_name": "Haltestellenname (freilassen zum Überspringen)"
+        }
+      },
+      "direction_select": {
+        "title": "Richtungs-Haltestelle auswählen",
+        "description": "Mehrere Haltestellen gefunden. Welche ist gemeint?",
+        "data": {
+          "selected_stop": "Haltestelle"
+        }
+      },
+      "direction_validate": {
+        "title": "Richtungs-Haltestelle wird überprüft..."
+      },
       "details": {
         "title": "Weitere Details",
         "description": "Zusätzliche Einstellungen",

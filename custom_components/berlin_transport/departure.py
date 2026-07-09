@@ -83,7 +83,7 @@ class Departure:
         # Return cached hash if available (Departure objects are effectively immutable)
         if self._hash_cache is not None:
             return self._hash_cache
-        
+
         # Compute hash once from essential uniqueness fields
         # trip_id + timestamp are unique per departure, so use simplified hash
         # instead of expensive to_dict() + sort operations

@@ -16,6 +16,23 @@
           "selected_stop": "Stop (name and ID)"
         }
       },
+      "direction_input": {
+        "title": "Direction Filter (Optional)",
+        "description": "Do you want to filter departures by a specific destination?\n\nExample: 'Zwickauer Damm' will only show trains that stop there.\n\nLeave empty to skip this step.",
+        "data": {
+          "direction_name": "Station name (leave empty to skip)"
+        }
+      },
+      "direction_select": {
+        "title": "Select Direction Station",
+        "description": "Multiple stations found. Which one did you mean?",
+        "data": {
+          "selected_stop": "Station"
+        }
+      },
+      "direction_validate": {
+        "title": "Validating Direction..."
+      },
       "details": {
         "title": "More Details",
         "description": "Additional settings",

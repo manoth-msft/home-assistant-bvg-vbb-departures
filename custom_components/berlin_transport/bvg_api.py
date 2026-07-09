@@ -106,7 +106,7 @@ async def fetch_and_parse_bvg_departures(
     transport_type_filters: dict[str, bool] | None = None,
 ) -> list[Departure] | None:
     """Fetch and parse BVG departures with optional transport type filtering.
-    
+
     Combines fetch_bvg_departures() and parse_bvg_departures() into a
     single call, applying only transport type filters (no direction filtering,
     as BVG API filters by final destination, not intermediate stops).
@@ -121,7 +121,7 @@ async def fetch_and_parse_bvg_departures(
                                'ferry', 'express', 'regional'. If provided,
                                only departures with enabled types returned.
                                None = no transport type filtering (all types).
-    
+
     Returns:
         Filtered list of Departure objects, or None if API request fails.
     """
@@ -131,30 +131,30 @@ async def fetch_and_parse_bvg_departures(
         max_journeys=max_journeys,
         timeout_seconds=timeout_seconds,
     )
-    
+
     if response is None:
         return None
-    
+
     # Parse with transport type filtering only
     filtered_departures = parse_bvg_departures(
         response=response,
         transport_type_filters=transport_type_filters,
     )
-    
+
     # Also parse without filtering to show pre-filter count for logging
     if transport_type_filters:
         unfiltered_departures = parse_bvg_departures(
             response=response,
             transport_type_filters=None,
         )
-        
+
         if unfiltered_departures:
             # Build summary by line_type
             enabled_types = [k for k, v in transport_type_filters.items() if v]
             type_counts: dict[str, int] = {}
             for d in unfiltered_departures:
                 type_counts[d.line_type] = type_counts.get(d.line_type, 0) + 1
-            
+
             if len(unfiltered_departures) != len(filtered_departures):
                 _LOGGER.debug(
                     "[bvg_api] Filtering for stop '%s': %d raw departures → %d after filtering "
@@ -165,5 +165,5 @@ async def fetch_and_parse_bvg_departures(
                     enabled_types,
                     type_counts,
                 )
-    
+
     return filtered_departures

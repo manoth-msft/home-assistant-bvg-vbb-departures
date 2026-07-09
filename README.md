@@ -11,7 +11,10 @@ Whether you're commuting, picking up your kids, or just wondering when the next 
 ## ✨ Features
 - **Real-time departures** from Berlin and Brandenburg transport stops with line numbers, destinations, delays, and platforms
 - **Dashboard card integration** for clean, user-friendly display
-- **Smart filtering**: direction, excluded stops, transport types (bus, tram, ferry, etc.)
+- **Smart filtering**: direction (with dedicated config flow UI), excluded stops, transport types (bus, tram, ferry, etc.)
+  - Direction filter now supports station name search (v0.1.6+) — no need to know numeric Stop-IDs
+  - Automatic validation ensures the station exists on the departures route
+  - Automatic migration from old configs with Stop-Names to numeric Stop-IDs
 - **Customization**: walking time offset, official VBB colors, Ringbahn ⟳/⟲ toggle
 - **Dual-API failover**: Redundant fallback chain — Primary → Secondary → BVG API — ensures maximum uptime
 - **Resilient caching**: Last successful departures stay visible during API outages

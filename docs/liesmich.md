@@ -7,7 +7,11 @@ Diese Integration bringt **Live-Daten des öffentlichen Nahverkehrs** aus Berlin
 ## ✨ Funktionen
 - **Echtzeit-Abfahrten** von BVG- & VBB-Haltestellen, inklusive Liniennummern, Zielorten und Verspätungen, aktualisiert alle 120 Sekunden
 - **Dashboard-Kartenintegration** für eine klare, benutzerfreundliche Anzeige der kommenden Abfahrten
-- **Erweiterte Filteroptionen**: Richtung, ausgeschlossene Haltestellen, Verkehrsmitteltypen (Bus, Tram, Fähre usw.)
+- **Erweiterte Filteroptionen**: 
+  - **Richtungsfilter** (mit dedizierter Config-Flow UI, ab v0.1.6): Einfache Suche nach Stationsnamen statt numerischer Stop-IDs
+  - Automatische Validierung, ob die Station auf der Strecke existiert
+  - Automatische Migration von alten Configs mit Stop-Namen zu numerischen Stop-IDs
+  - Ausgeschlossene Haltestellen, Verkehrsmitteltypen (Bus, Tram, Fähre usw.)
 - **Anpassungen**: Wegezeiten-Berücksichtigung, offizielle VBB-Linienfarben, Ringbahn ⟳/⟲-Filter
 - **Dual-API-Failover**: Redundante Fallback-Kette — Primär → Sekundär → BVG-API — für maximale Verfügbarkeit
 - **Resiliente Zwischenspeicherung**: Letzte erfolgreiche Abfahrten bleiben sichtbar während API-Ausfällen

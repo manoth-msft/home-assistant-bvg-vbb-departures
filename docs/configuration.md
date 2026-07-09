@@ -4,7 +4,7 @@
 
 This page explains all configuration options for the BVG/VBB Departures integration. Most options are optional and only needed for advanced use cases.
 
-### 📍 Direction
+### 📍 Direction (v0.1.6+)
 
 Filter departures to show only trains heading to a specific destination.
 
@@ -12,15 +12,23 @@ Filter departures to show only trains heading to a specific destination.
 
 **Example:** If you select "S Treptower Park" but only want to see trains going to "S+U Neukölln", you can filter by the S+U Neukölln direction.
 
-**How to use:**
-- Provide the `stop_id` of your destination (or any stop along the intended route)
-- For multiple directions, use comma-separated values: `900078201,900190001`
+**How to use (v0.1.6+):**
+- During initial setup or when editing the integration, you'll be prompted for an optional direction filter
+- Simply enter the station name (e.g., "Zwickauer Damm", "Adlershof") — partial names are supported
+- If multiple stations match, you'll see a dropdown to select the correct one
+- **No need to know Stop-IDs anymore!** The integration handles the lookup automatically
+- The integration validates that the station exists on your departures route
 
 **When to use this:** 
 - You're at a station with multiple lines or directions
 - You only care about trains heading in one direction
 
-**Finding the stop_id:** See [FAQ: How do I find my stop_id?](./faq.md#q-how-do-i-find-my-stop_id)
+**What changed from v0.1.5?**
+- **Old (v0.1.5)**: Required manual lookup of numeric Stop-IDs and direct YAML/text configuration
+- **New (v0.1.6)**: Just type the station name in the config flow UI. The integration finds the Stop-ID for you automatically
+- **Auto-migration**: Existing configs with Stop-Names are automatically converted to Stop-IDs on startup
+
+**Finding stop info:** See [FAQ: How do I set up direction filtering?](./faq.md#q-how-do-i-set-up-direction-filtering-v016)
 
 ---
 
