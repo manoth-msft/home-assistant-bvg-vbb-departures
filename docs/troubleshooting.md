@@ -91,7 +91,7 @@ The sensor needs at least one successful update.
 Your direction filter might be excluding all departures.
 
 **Solution:**
-- Check that you provided the correct `stop_id` for your direction
+- Re-check your selected direction station in the config flow
 - Try removing the direction filter temporarily to see all departures
 - See [Configuration Guide](./configuration.md#-direction) for help
 
@@ -130,7 +130,7 @@ You might have disabled the transport type you're looking for.
 #### 1. Slow internet connection
 Your network connection to the VBB API is slow.
 
-**Check:** The integration has a **240-second timeout** for API requests. If your connection is very slow, requests might time out.
+**Check:** The integration has a **30-second timeout** for API requests. If your connection is very slow, requests might time out.
 
 **Solution:**
 - Check your internet connection speed
@@ -168,31 +168,33 @@ If you have too many sensors, API rate limits might be hit.
 
 **Symptoms:**
 - You set a direction filter, but still see all departures
-- Card shows trains going everywhere, not just your destination
+- Card shows services going everywhere, not just your selected direction
+- Card shows no departures
 
 **Possible causes:**
 
-#### 1. Wrong stop_id for direction
-The direction filter uses `stop_id`, not station name.
+#### 1. Wrong direction station selected
+The selected station may not be the one you intended (for example, a similarly named stop).
 
 **Solution:**
-- See [FAQ: How do I find my stop_id?](./faq.md#q-how-do-i-find-my-stop_id)
-- Make sure you're providing the `stop_id`, not the station name
-- The `stop_id` is a numeric code like `900100003`
+- Reconfigure the integration and select the direction again
+- Enter the station name and pick the correct result from the dropdown
+- If needed, use a more specific station name to reduce ambiguous matches
 
 ---
 
-#### 2. Direction is an intermediate stop, not endpoint
-The direction filter works for **final destinations only**. If you try to filter for a stop in the middle of a line, it won't work.
+#### 2. Filter is currently too restrictive
+Your selected direction might have no matching departures in the current time window.
 
 **Example:**
-- You want to filter for trains passing through "Friedrichstraße" (an intermediate stop)
-- But many lines pass through Friedrichstraße without ending there
-- The filter can't distinguish these; it only filters by endpoint
+- You filter for a specific direction stop
+- At the current time, no departures from your main stop are stopping there
+- The card appears empty or shows fewer departures than expected
 
 **Solution:**
-- Use a stop that is a final destination (endpoint) for the line
-- Or remove the direction filter and use other filtering options
+- Try a less restrictive direction stop
+- Increase your departure window where applicable
+- Temporarily disable direction filtering to verify base data is present
 
 ---
 

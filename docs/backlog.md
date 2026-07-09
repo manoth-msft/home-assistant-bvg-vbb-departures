@@ -68,3 +68,8 @@
 - Rollback task: Remove temporary hardcoded 30-minute departures fetch and re-enable configurable `duration`
   - Ziel: `duration` wieder als nutzerseitige Option im Config Flow und in YAML verfuegbar machen
   - Kontext: 30-Minuten-Hardcode ist nur als temporaere Stabilitaetsmassnahme aktiv
+
+- Direction-Sanitizing: Mehrere Stop-IDs per Komma auf erste ID reduzieren
+  - Ziel: Falls `direction` als kommagetrennte Liste gespeichert ist (z. B. `900001203,900003201`), nur die erste Stop-ID behalten
+  - Kontext: Kommt aus Legacy-/Fehlkonfigurationen; API erwartet genau eine IBNR
+  - Akzeptanzkriterium: Nach Migration/Sanitizing ist `direction` immer genau eine einzelne numerische Stop-ID oder leer

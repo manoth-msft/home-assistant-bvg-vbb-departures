@@ -43,16 +43,14 @@ The first `"id"` field contains the required `stop_id` — here: **900100003**.
 
 ---
 
-### Q: How do I set up direction filtering? (v0.1.6+)
+### Q: How do I set up direction filtering?
 
-Starting with v0.1.6, direction filtering is now configured through a dedicated config flow UI instead of manual text entry.
+Direction filtering is configured through a dedicated config flow UI instead of manual text entry.
 
 **Setup process:**
 1. During initial setup, after selecting your stop, you'll be prompted: *"Do you want to filter departures by a specific direction?"*
 2. Enter a station name (e.g., "Zwickauer Damm", "Adlershof"). Partial names are supported.
 3. If multiple stations match your input, you'll see a dropdown to select the correct one.
-4. The integration automatically validates that the station exists on your departures route.
-5. If validation fails, you'll see a warning but can choose to proceed anyway.
 
 **No need to know Stop-IDs anymore!** The integration handles the lookup and conversion automatically.
 
@@ -63,31 +61,14 @@ Starting with v0.1.6, direction filtering is now configured through a dedicated 
 
 ---
 
-### Q: I see a warning "Direction stop not found on trips". What does this mean?
-
-Starting with v0.1.6, the integration validates that your direction station exists on the departures route.
-
-**If you see this warning:**
-- It means the station you selected isn't expected on the route during the next 7 days (based on today's schedule).
-- This can happen if:
-  - The station is served on some lines but not others
-  - The station's service has changed
-  - There's a temporary service disruption
-  
-**What to do:**
-- The warning is informational only — your sensor will still work fine and fetch departures.
-- The integration doesn't block the configuration, so you can ignore the warning.
-- If the warning persists, verify that the station name matches exactly what you intended.
-
----
-
 ### Q: How can I change configuration options later?
 
-Go to **Settings > Devices & Services**, select the **BVG/VBB Departures** integration, and click on the three dots next to the entity you want to update. Delete the entry.
+Go to **Settings > Devices & Services**, select the **BVG/VBB Departures** integration, and click the three dots next to the entry you want to change.
 
-Then choose **Add Integration** and re-add the stop with the adjusted configuration.
+1. Delete the old entry first.
+2. Then choose **Add Integration** and create it again with the updated configuration.
 
-The new entity will receive the same ID as the previous one, so your dashboards do not need to be updated.
+The recreated entity will usually get the same entity ID, so your dashboards typically do not need any changes.
 
 ---
 
@@ -149,10 +130,9 @@ This is usually sufficient, but adding dozens of stops is not recommended to avo
 
 ### Q: How long does the integration wait for API responses?
 
-The integration uses a **30-second timeout** for all API requests (stop search, departure fetching, validation). This timeout applies to:
+The integration uses a **30-second timeout** for all API requests (stop search and departure fetching). This timeout applies to:
 - Location/stop search requests (when setting up direction filters)
 - Departure fetching from VBB/HAFAS API
-- Trip validation requests (verifying stops exist on routes)
 
 If an API request takes longer than 30 seconds, it fails gracefully and the integration falls back to its retry strategy (adaptive backoff, last known departures remain visible).
 
@@ -260,15 +240,9 @@ See the [Troubleshooting Guide](./troubleshooting.md) for more solutions.
 
 ### Q: Sensor updates are slow or hanging
 
-This could be a timeout or slow network connection. The integration has a 240-second timeout for API requests.
+This could be a timeout or slow network connection. The integration has a 30-second timeout for API requests.
 
 See the [Troubleshooting Guide](./troubleshooting.md) for debugging steps.
-
----
-
-### Q: The direction filter doesn't work
-
-Make sure you've provided the correct `stop_id` for your destination. See [How do I find my stop_id?](#q-how-do-i-find-my-stop_id) above.
 
 ---
 

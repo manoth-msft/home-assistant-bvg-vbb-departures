@@ -4,20 +4,19 @@
 
 This page explains all configuration options for the BVG/VBB Departures integration. Most options are optional and only needed for advanced use cases.
 
-### 📍 Direction (v0.1.6+)
+### 📍 Direction
 
 Filter departures to show only services heading toward a specific stop.
 
 **What it does:** Instead of showing all departures from your stop, you'll only see services that go to (or pass through) your specified stop.
 
-**Example:** If you select "S Treptower Park" but only want to see services going to "S+U Neukölln", you can filter by the S+U Neukölln direction.
+**Example:** If you select "U Rudow" (served by buses and the U7) but only want departures continuing toward "Zwickauer Damm", you can filter by direction "Zwickauer Damm". This leaves only the U-Bahn departures.
 
-**How to use (v0.1.6+):**
+**How to use:**
 - During initial setup or when editing the integration, you'll be prompted for an optional direction filter
 - Simply enter the station name (e.g., "Zwickauer Damm", "Adlershof") — partial names are supported
 - If multiple stations match, you'll see a dropdown to select the correct one
 - **No need to know Stop-IDs anymore!** The integration handles the lookup automatically
-- The integration validates that the station exists on your departures route
 - You can use both intermediate stops and terminus stations
 
 **When to use this:** 
@@ -29,7 +28,7 @@ Filter departures to show only services heading toward a specific stop.
 - **New (v0.1.6)**: Just type the station name in the config flow UI. The integration finds the Stop-ID for you automatically
 - **Auto-migration**: Existing configs with Stop-Names are automatically converted to Stop-IDs on startup
 
-**Finding stop info:** See [FAQ: How do I set up direction filtering?](./faq.md#q-how-do-i-set-up-direction-filtering-v016)
+**Finding stop info:** See [FAQ: How do I set up direction filtering?](./faq.md#q-how-do-i-set-up-direction-filtering)
 
 ---
 

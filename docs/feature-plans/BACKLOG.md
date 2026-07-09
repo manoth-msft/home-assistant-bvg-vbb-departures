@@ -1,28 +1,46 @@
 # Product Backlog
 
-**Last Updated:** 2026-07-08  
+**Last Updated:** 2026-07-09  
 **Total Items:** 13  
-**High Priority:** 1 (Direction Stop Management)
+**High Priority:** 3 (P1)
 
 ---
 
-## High Priority (v0.1.6)
+## High Priority (P1)
 
-### Improve direction stop selection ⚠️ PRIORITÄT ERHÖHT
-- **Status:** Planning → See [v0.1.6_direction_management.md](v0.1.6_direction_management.md)
-- **Ziel:** UX für Direction-Filterung verbessern (aktuell: manuelle Stop-ID-Eingabe erforderlich)
-- **Problem gefunden** (API-Log-Analyse): Nutzer geben Stop-NAMEN statt Stop-IDs ein!
-  - Nutzer schreiben z.B. `direction=Tegel` oder `direction=S Heiligensee`
-  - API antwortet mit HTTP 500 "direction must be an IBNR"
-  - Müssen Stop-IDs sein: `direction=900091203`
-- **Lösung:** Subentry-Pattern + Stop-Name Lookup + Auto-Migration
-- **Priorität:** **HOCH** (Nutzer-Fehler, HTTP 500 im Feld, dokumentierte Funktionalität)
-- **Effort:** 14-18h
-- **Target Release:** v0.1.6
+### Editieren vorhandener Stops erlauben
+- **Ziel:** Benutzer sollen existierende Stops/Sensoren direkt in der UI editieren können
+- **Features:** Ändern von Name, Direction, excluded_stops, etc.
+- **Nutzen:** Bessere UX statt Delete + Neuanlage
+- **Kontext:** Benötigt Erweiterung des Config Flow mit Edit-Funktion
+- **Priorität:** Medium
+- **Effort:** 4-6h
+
+### Ausschließen von Stops in modernen Workflow integrieren
+- **Ziel:** Excluded Stops nicht mehr über manuelle Stop-ID-Listen, sondern über einen geführten Auswahl-Workflow konfigurieren
+- **Nutzen:** Weniger Fehler bei IDs, bessere Bedienbarkeit und schnellere Konfiguration
+- **Kontext:** Erweiterung des Config Flow um Suche/Mehrfachauswahl für auszuschließende Haltestellen
+- **Priorität:** High (P1)
+- **Effort:** 4-6h
+
+### Auswahl von Verkehrsmitteln direkt nach Stationsangabe (neuer KonfigFlow)
+- **Ziel:** Reihenfolge im KonfigFlow modernisieren und klar führen
+- **Neuer Flow:** Station → Filter 1: Transport types → Filter 2: Direction → Filter 3: Ausschlüsse → Anzeigeoptionen
+- **Nutzen:** Schnellere Einrichtung, weniger Fehlkonfigurationen, bessere UX
+- **Kontext:** Umbau der Schrittreihenfolge im Config Flow inkl. passender Übersetzungs-/Hilfetexte
+- **Priorität:** High (P1)
+- **Effort:** 4-6h
 
 ---
 
 ## Medium Priority (v0.1.7+)
+
+### Löschen vorhandener Entitäten erlauben (P2)
+- **Ziel:** Benutzer sollen Stops/Sensoren direkt aus der Integration UI löschen können
+- **Nutzen:** Bessere UX statt manuelle YAML-Bearbeitung oder Config Entry Löschen
+- **Kontext:** Benötigt Config Flow Erweiterung mit Delete-Funktion pro Stop
+- **Priorität:** P2
+- **Effort:** 2-3h
 
 ### Make domain unique
 - **Ziel:** Domain in Home Assistant eindeutig machen (derzeit "berlin_transport")
@@ -37,32 +55,6 @@
 - **Scope:** Code Quality, Error Handling, Logging, Documentation, User Experience
 - **Priorität:** Long-term Roadmap Item
 - **Effort:** Ongoing
-
-### Konfigurierbare Schalter für Resilienz-Parameter
-- **Ziel:** Fallback-Zeit (stale cache) und maximale Backoff-Dauer pro Entität über Config Flow einstellbar machen
-- **Nutzen:** Feintuning je nach API-Stabilität und persönlicher Update-Präferenz
-- **Scope:**
-  - Neue optionale Felder im Config Flow
-  - Persistenz in Config Entry
-  - Verwendung im Sensor-Update-Pfad (Fallback/Backoff)
-  - Kurze Doku-Ergänzung
-- **Priorität:** Medium (Quality of Life)
-- **Effort:** 6-8h
-
-### Editieren vorhandener Stops erlauben
-- **Ziel:** Benutzer sollen existierende Stops/Sensoren direkt in der UI editieren können
-- **Features:** Ändern von Name, Direction, excluded_stops, etc.
-- **Nutzen:** Bessere UX statt Delete + Neuanlage
-- **Kontext:** Benötigt Erweiterung des Config Flow mit Edit-Funktion
-- **Priorität:** Medium
-- **Effort:** 4-6h
-
-### Löschen vorhandener Entitäten erlauben
-- **Ziel:** Benutzer sollen Stops/Sensoren direkt aus der Integration UI löschen können
-- **Nutzen:** Bessere UX statt manuelle YAML-Bearbeitung oder Config Entry Löschen
-- **Kontext:** Benötigt Config Flow Erweiterung mit Delete-Funktion pro Stop
-- **Priorität:** Medium
-- **Effort:** 2-3h
 
 ---
 
@@ -101,17 +93,7 @@
 
 ---
 
-## Low Priority / Deferred
-
-### Rollback task: Re-enable configurable `duration`
-- **Ziel:** `duration` wieder als nutzerseitige Option im Config Flow und in YAML verfügbar machen
-- **Kontext:** 30-Minuten-Hardcode ist nur als temporäre Stabilitätsmassnahme aktiv
-- **Priorität:** Low (nach API-Stabilität Verbesserungen)
-- **Effort:** 1-2h
-
----
-
-## Completed (v0.1.5)
+## Completed (v0.1.5 - v0.1.6)
 
 ✅ Dual-API failover system (Primary → Secondary → BVG)  
 ✅ Endpoint-aware ETag caching  
@@ -120,4 +102,5 @@
 ✅ Direction parameter bug fix (HTTP 500)  
 ✅ BVG fallback integration  
 ✅ Enhanced logging and documentation  
+✅ Direction stop selection overhaul (guided station search in config flow, no manual Stop-ID lookup)
 
