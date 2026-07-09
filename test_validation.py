@@ -103,7 +103,7 @@ for value, desc, expected_error in invalid_tests:
 print("\n2. Testing validate_walking_time:")
 print("-" * 70)
 
-walking_valid = [
+walking_valid_cases: list[tuple[int, str]] = [
     (0, "Zero (edge case)"),
     (1, "Normal value"),
     (15, "High value"),
@@ -111,23 +111,23 @@ walking_valid = [
 ]
 
 print("\n✓ Valid cases:")
-for value, desc in walking_valid:
+for test_value, desc in walking_valid_cases:
     try:
-        result = validate_walking_time(value)
-        print(f"  ✓ {desc}: {value} min → Accepted")
+        result = validate_walking_time(test_value)
+        print(f"  ✓ {desc}: {test_value} min → Accepted")
     except vol.Invalid as e:
         print(f"  ✗ {desc}: UNEXPECTED ERROR: {e}")
 
-walking_invalid = [
+walking_invalid_cases: list[tuple[int, str]] = [
     (-1, "Negative value"),
     (61, "Over limit (61 > 60)"),
     (120, "Too high (120 min)"),
 ]
 
 print("\n✗ Invalid cases (should be rejected):")
-for value, desc in walking_invalid:
+for test_value, desc in walking_invalid_cases:
     try:
-        result = validate_walking_time(value)
+        result = validate_walking_time(test_value)
         print(f"  ✗ {desc}: SHOULD HAVE FAILED")
     except vol.Invalid as e:
         print(f"  ✓ {desc}: Correctly rejected")

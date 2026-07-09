@@ -42,7 +42,7 @@ BVG_FALLBACK_ENABLED = True  # Enable BVG API as fallback when transport.rest fa
 DIRECTION_ID_MIGRATION_ENABLED = True
 # DEBUG-MODE: Liste von Stop-Namen die als TEXT gespeichert werden
 # (leer in Produktion)
-DIRECTION_DEBUG_KEEP_AS_TEXT = []
+DIRECTION_DEBUG_KEEP_AS_TEXT: list[str] = []
 # Automatischer Flag wenn Debug-Liste nicht leer
 DIRECTION_DEBUG_MODE_ENABLED = len(DIRECTION_DEBUG_KEEP_AS_TEXT) > 0
 
