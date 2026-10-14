@@ -10,7 +10,7 @@ Diese Integration bringt **Live-Daten des öffentlichen Nahverkehrs** aus Berlin
 - **Erweiterte Filteroptionen**: Richtungsfilter (mit dedizierter Config-Flow UI), ausgeschlossene Haltestellen, Verkehrsmitteltypen (Bus, Tram, Fähre usw.)
   - Im Config-Flow ist die Richtungs-Einrichtung vollständig geführt über Stationssuche — keine manuelle Stop-ID-Suche nötig
 - **Anpassungen**: Wegezeiten-Berücksichtigung, offizielle VBB-Linienfarben, Ringbahn ⟳/⟲-Filter
-- **Dual-API-Failover**: Redundante Fallback-Kette — Primär → Sekundär → BVG-API — für maximale Verfügbarkeit
+- **API-Failover**: Fallback-Kette — Primär (`v6.vbb.transport.rest`) → BVG-API — plus optionaler, standardmäßig deaktivierter Sekundär-Endpunkt (siehe [FAQ](./faq.md#q-what-happens-if-the-primary-api-fails))
 - **Resiliente Zwischenspeicherung**: Letzte erfolgreiche Abfahrten bleiben sichtbar während API-Ausfällen
 - **Sprachunterstützung** mit deutschen und englischen Übersetzungen
 

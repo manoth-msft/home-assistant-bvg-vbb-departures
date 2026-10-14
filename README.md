@@ -14,7 +14,7 @@ Whether you're commuting, picking up your kids, or just wondering when the next 
 - **Smart filtering**: direction (with dedicated config flow UI), excluded stops, transport types (bus, tram, ferry, etc.)
   - In the config flow, direction setup is fully guided by station search — no manual Stop-ID lookup needed
 - **Customization**: walking time offset, official VBB colors, Ringbahn ⟳/⟲ toggle
-- **Dual-API failover**: Redundant fallback chain — Primary → Secondary → BVG API — ensures maximum uptime
+- **API failover**: Fallback chain — Primary (`v6.vbb.transport.rest`) → BVG API — plus an optional, opt-in secondary endpoint (see [FAQ](./docs/faq.md#q-what-happens-if-the-primary-api-fails))
 - **Resilient caching**: Last successful departures stay visible during API outages
 - **Languages**: German and English support
 

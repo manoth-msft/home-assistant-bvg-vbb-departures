@@ -94,15 +94,19 @@ Or you might see:
 
 ### Q: What happens if the primary API fails?
 
-The integration uses a **dual-API failover system** for reliability:
+The integration uses a **failover chain** for reliability:
 
-1. **Primary endpoint**: `v6.vbb.transport.rest` (official VBB API)
-2. **Secondary endpoint**: Custom redundant instance (for fallback)
-3. **BVG fallback**: If both primary and secondary fail, the integration falls back to BVG's API with backoff
+1. **Primary endpoint**: `v6.vbb.transport.rest` (public VBB API)
+2. **Secondary endpoint** (optional, **disabled by default**): `we1external.dynv6.net:8500`, a privately operated instance of the same API
+3. **BVG fallback**: If the primary (and, if enabled, the secondary) endpoint fails, the integration falls back to BVG's API with backoff
+
+**About the secondary endpoint:**
+- It is not an official VBB/BVG service. If enabled, it receives the same requests as the primary API: your stop ID, direction/transport filters, the integration's User-Agent and your public IP address. The stop search in the configuration UI uses it too.
+- To enable it, set `SEC_API_ENABLED = True` in `custom_components/berlin_transport/const.py` (HACS updates overwrite this file).
 
 **Behavior:**
-- Both primary and secondary endpoints are tried immediately in sequence with no delay
-- If both fail, the integration applies exponential backoff (max 10 minutes) and activates BVG fallback
+- Enabled endpoints are tried immediately in sequence with no delay
+- If they all fail, the integration applies exponential backoff (max 10 minutes) and activates BVG fallback
 - Your last successful departure data is kept visible on the dashboard during outages
 - The sensor's `health_status` attribute shows whether you're using primary, secondary, or fallback data
 

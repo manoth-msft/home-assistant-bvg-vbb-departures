@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **Secondary endpoint is now opt-in**: `SEC_API_ENABLED` defaults to `False`. `we1external.dynv6.net:8500` is a privately operated instance; it is no longer contacted unless explicitly enabled. Failover is now Primary → BVG fallback by default. Documented the endpoint and what is sent to it in the FAQ.
+
+### Security
+- Validate API fields before exposing them as sensor attributes: line colors must be hex colors (`#rgb` … `#rrggbbaa`), otherwise the transport-type default is used; `line_name`/`direction` are coerced to strings, `delay` to int, `cancelled` to bool.
+
 ## [0.1.6] - 2026-07-09
 
 ### Added

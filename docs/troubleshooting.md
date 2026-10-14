@@ -41,8 +41,8 @@ Replace `YOUR_STOP_NAME` with your stop. If this returns no results, the API doe
 The VBB API might be temporarily unreachable. The integration has built-in failover to handle this:
 
 **Failover sequence:**
-1. Primary API (`v6.vbb.transport.rest`) fails → Tries secondary endpoint immediately
-2. Secondary endpoint fails → Activates BVG fallback API with automatic backoff
+1. Primary API (`v6.vbb.transport.rest`) fails → Tries the secondary endpoint immediately, if enabled (disabled by default, see [FAQ](./faq.md#q-what-happens-if-the-primary-api-fails))
+2. Secondary endpoint fails or is disabled → Activates BVG fallback API with automatic backoff
 3. All APIs recover → Automatically switches back to primary
 
 **Check:** 

@@ -1,7 +1,31 @@
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
 from .const import TRANSPORT_TYPE_VISUALS, DEFAULT_ICON
+
+HEX_COLOR_PATTERN = re.compile(r"^#[0-9a-fA-F]{3,8}$")
+
+
+def _str_or_none(value) -> str | None:
+    """Return API text values as plain strings (or None)."""
+    return None if value is None else str(value)
+
+
+def _hex_color_or_none(value) -> str | None:
+    """Only accept CSS hex colors from the API, everything else is dropped."""
+    if isinstance(value, str) and HEX_COLOR_PATTERN.match(value):
+        return value
+    return None
+
+
+def _int_or_none(value) -> int | None:
+    """Return the delay in seconds as int (or None if missing/invalid)."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    return None
 
 
 @dataclass
@@ -34,20 +58,22 @@ class Departure:
         )
         return cls(
             trip_id=source["tripId"],
-            line_name=source.get("line", {}).get("name"),
+            line_name=_str_or_none(source.get("line", {}).get("name")),
             line_type=line_type,
             timestamp=timestamp,
             time=timestamp.strftime("%H:%M"),
-            direction=source.get("direction"),
+            direction=_str_or_none(source.get("direction")),
             icon=line_visuals.get("icon") or DEFAULT_ICON,
-            bg_color=source.get("line", {}).get("color", {}).get("bg"),
+            bg_color=_hex_color_or_none(
+                (source.get("line", {}).get("color") or {}).get("bg")
+            ),
             fallback_color=line_visuals.get("color"),
             location=[
                 source.get("currentTripPosition", {}).get("latitude") or 0.0,
                 source.get("currentTripPosition", {}).get("longitude") or 0.0,
             ],
-            cancelled=source.get("cancelled", False),
-            delay=source.get("delay", None),
+            cancelled=bool(source.get("cancelled", False)),
+            delay=_int_or_none(source.get("delay")),
             warnings=[
                 {"id": remark.get("id"), "summary": remark.get("summary")}
                 for remark in source.get("remarks", [])

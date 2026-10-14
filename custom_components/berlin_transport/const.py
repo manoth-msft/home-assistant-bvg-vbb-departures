@@ -17,7 +17,9 @@ FALLBACK_TIME = timedelta(minutes=15)
 
 # Primary and secondary API endpoints
 PRIM_API_ENDPOINT = "https://v6.vbb.transport.rest"
-SEC_API_ENDPOINT = "https://we1external.dynv6.net:8500"  # Secondary/redundant instance
+# Secondary/redundant instance. This is a privately operated server, not an official
+# VBB/BVG service, so it is only used when SEC_API_ENABLED is set to True.
+SEC_API_ENDPOINT = "https://we1external.dynv6.net:8500"
 BVG_API_ENDPOINT = "https://www.bvg.de/connection-search/v1/departureBoard"
 BVG_API_REFERER = "https://www.bvg.de/"
 
@@ -34,7 +36,7 @@ BACKOFF_MAX_SECONDS = 600  # 10 minutes maximum backoff
 
 # Feature gates
 PRIM_API_ENABLED = True  # Enable primary VBB/transport.rest API
-SEC_API_ENABLED = True  # Enable secondary/redundant API endpoint
+SEC_API_ENABLED = False  # Opt-in: send requests to SEC_API_ENDPOINT if primary fails
 BVG_FALLBACK_ENABLED = True  # Enable BVG API as fallback when transport.rest fails
 
 # Direction Stop-ID migration (v0.1.6)
